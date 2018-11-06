@@ -7,30 +7,39 @@ import (
 )
 
 func Executor(s string) {
-	s = strings.TrimSpace(s)
-	if s == "" {
+	trimmedS := strings.TrimSpace(s)
+	if trimmedS == "" {
 		return
-	} else if s == "quit" || s == "exit" {
+	} else if trimmedS == "quit" || trimmedS == "exit" {
 		fmt.Println("Bye!")
 		os.Exit(0)
 		return
 	}
 
 	words := splitWithQuotes(s)
-	if len(words) > 0 {
-		cmdIndex := 0
-		for i := len(words) - 1; i >= 0; i-- {
-			if strings.HasPrefix(words[i], "-") {
-				continue
-			} else {
-				// this is a command
-				cmdIndex = i
-				cliLogger.Trace("found last command: %v", words[cmdIndex])
-				break
+	cmdIndex, lastCmd := findLastCommand(words, true)
+
+	for _, cmd := range commands {
+		if lastCmd == cmd.Text() {
+			// check its followedby
+			failed := false
+			for j := cmdIndex - 1; j >= 0; j-- {
+				followedBy := cmd.FollowedBy()[len(cmd.FollowedBy()) - cmdIndex + j]
+				for _, _cmd := range commands {
+					if _cmd.Text() == followedBy && followedBy != "" {
+						// good
+						cliLogger.Trace("Good for %v", followedBy)
+						break
+					} else {
+						// boom
+						cliLogger.Debug("BOOM")
+						failed = true
+					}
+				}
 			}
-		}
-		if cmd, ok := commands[words[cmdIndex]]; ok {
-			cmd.Execute(words[:cmdIndex], getArgumentsByStrings(words[cmdIndex + 1:]))
+			if !failed {
+				cmd.Execute(words[:cmdIndex], getArgumentsByStrings(words[cmdIndex + 1:]))
+			}
 		}
 	}
 }

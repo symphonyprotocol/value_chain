@@ -64,7 +64,7 @@ func splitWithQuotes(s string) []string {
 			inQuote = !inQuote
 		}
 
-		cliLogger.Trace("current: %v, wordStart: %v, wordEnd: %v, inQuote: %v, total: %v", c, wordStart, wordEnd, inQuote, len(s))
+		//cliLogger.Trace("current: %v, wordStart: %v, wordEnd: %v, inQuote: %v, total: %v", c, wordStart, wordEnd, inQuote, len(s))
 
 		if i == len(s) - 1 {
 			wordEnd = len(s)
@@ -78,5 +78,25 @@ func splitWithQuotes(s string) []string {
 		}
 	}
 
-	return words	
+	return words
+}
+
+func findLastCommand(words []string, hasEmptySuffix bool) (int, string) {
+	cmdIndex := 0
+	for i := len(words) - 1; i >= 0; i-- {
+		if strings.HasPrefix(words[i], "-") {
+			continue
+		} else {
+			// this is a command
+			cmdIndex = i
+			cliLogger.Trace("found last command: %v", words[cmdIndex])
+			if cmdIndex == len(words) - 1 && cmdIndex > 0 && !hasEmptySuffix {
+				cliLogger.Trace("adjust last command to: %v", words[cmdIndex - 1])
+				cmdIndex = cmdIndex - 1
+			}
+			return cmdIndex, words[cmdIndex]
+		}
+	}
+
+	return -1, ""
 }

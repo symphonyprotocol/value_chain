@@ -20,6 +20,7 @@ func (c *CLI) Init() {
 	// 	}, d.GetWordBeforeCursor(), true)
 	// })
 
+	cliLogger.SetLevel(log.INFO)
 	p := prompt.New(
 		Executor,
 		Completer,

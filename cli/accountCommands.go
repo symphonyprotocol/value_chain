@@ -9,7 +9,7 @@ func (a *AccountCommand) Text() string { return "account" }
 func (a *AccountCommand) Description() string { return "Account related commands" }
 func (a *AccountCommand) Subcommands() []string {
 	return []string{
-		"newmnemonic", "getkey", "derivekey",
+		"_newmnemonic", "_getkey", "_derivekey", "new-wallet", "list", "use",
 	}
 }
 func (a *AccountCommand) SupportedArguments() []string { return []string{} }
@@ -19,7 +19,7 @@ func (a *AccountCommand) Execute(previousCmds []string, args []IArgument) {
 }
 
 type AccountNewCommand struct {}
-func (a *AccountNewCommand) Text() string { return "newmnemonic" }
+func (a *AccountNewCommand) Text() string { return "_newmnemonic" }
 func (a *AccountNewCommand) Description() string { return "Create a new mnemonic." }
 func (a *AccountNewCommand) Subcommands() []string { return []string{} }
 func (a *AccountNewCommand) SupportedArguments() []string { return []string{} }
@@ -34,7 +34,7 @@ func (a *AccountNewCommand) Execute(previousCmds []string, args []IArgument) {
 }
 
 type AccountGetKeyCommand struct {}
-func (a *AccountGetKeyCommand) Text() string { return "getkey" }
+func (a *AccountGetKeyCommand) Text() string { return "_getkey" }
 func (a *AccountGetKeyCommand) Description() string { return "Create a private key with your mnemonic." }
 func (a *AccountGetKeyCommand) Subcommands() []string { return []string{} }
 func (a *AccountGetKeyCommand) SupportedArguments() []string { return []string{ "-m", "-p" } }
@@ -48,7 +48,7 @@ func (a *AccountGetKeyCommand) Execute(previousCmds []string, args []IArgument) 
 		w, err := swa.NewFromMnemonic(argM.GetValue(), pValue)
 		if err == nil {
 			pubKey, _ := w.GetMasterKey().ECPubKey()
-			cliLogger.Trace("We got the wallet: %v", pubKey.ToAddress())
+			cliLogger.Trace("We got the wallet: %v", pubKey.ToAddressCompressed())
 		} else {
 			cliLogger.Error("Error: %v", err)
 		}
@@ -56,7 +56,7 @@ func (a *AccountGetKeyCommand) Execute(previousCmds []string, args []IArgument) 
 }
 
 type AccountDeriveCommand struct {}
-func (a *AccountDeriveCommand) Text() string { return "derivekey" }
+func (a *AccountDeriveCommand) Text() string { return "_derivekey" }
 func (a *AccountDeriveCommand) Description() string { return "Derive a sub key with your mnemonic and path." }
 func (a *AccountDeriveCommand) Subcommands() []string { return []string{} }
 func (a *AccountDeriveCommand) SupportedArguments() []string { return []string{ "-m", "-pwd", "-path" } }
@@ -71,17 +71,26 @@ func (a *AccountDeriveCommand) Execute(previousCmds []string, args []IArgument) 
 			w, err := swa.NewFromMnemonic(argM.GetValue(), pValue)
 			if err == nil {
 				pubKey, _ := w.GetMasterKey().ECPubKey()
-				cliLogger.Trace("We got the wallet: %v", pubKey.ToAddress())
+				cliLogger.Trace("We got the wallet: %v", pubKey.ToAddressCompressed())
 				cliLogger.Trace("Trying to derive key with path: %v", argPath.GetValue())
 				_, pub, err2 := w.DeriveKey(argPath.GetValue())
 				if err2 == nil {
-					cliLogger.Trace("We got the derived address with path: %v", pub.ToAddress())
+					cliLogger.Trace("We got the derived address with path: %v", pub.ToAddressCompressed())
 				}
 			} else {
 				cliLogger.Error("Error: %v", err)
 			}
 		}
 	}
+}
+
+type AccountListCommand struct {}
+func (a *AccountListCommand) Text() string { return "list" }
+func (a *AccountListCommand) Description() string { return "list all accounts." }
+func (a *AccountListCommand) Subcommands() []string { return []string{} }
+func (a *AccountListCommand) SupportedArguments() []string { return []string{ } }
+func (a *AccountListCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountListCommand) Execute(previousCmds []string, args []IArgument) {
 }
 
 type AccountGetKeyArgumentMnemonic struct { *BaseArgument }
