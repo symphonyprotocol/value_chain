@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/symphonyprotocol/simple-node/node"
 	"github.com/symphonyprotocol/swa"
 )
 
@@ -9,7 +10,7 @@ func (a *AccountCommand) Text() string { return "account" }
 func (a *AccountCommand) Description() string { return "Account related commands" }
 func (a *AccountCommand) Subcommands() []string {
 	return []string{
-		"_newmnemonic", "_getkey", "_derivekey", "new-wallet", "list", "use",
+		"_newmnemonic", "_getkey", "_derivekey", "new", "list", "use",
 	}
 }
 func (a *AccountCommand) SupportedArguments() []string { return []string{} }
@@ -18,13 +19,13 @@ func (a *AccountCommand) Execute(previousCmds []string, args []IArgument) {
 	cliLogger.Warn("account need to be followed by commands: newmnemonic, getkey or derivekey.")
 }
 
-type AccountNewCommand struct {}
-func (a *AccountNewCommand) Text() string { return "_newmnemonic" }
-func (a *AccountNewCommand) Description() string { return "Create a new mnemonic." }
-func (a *AccountNewCommand) Subcommands() []string { return []string{} }
-func (a *AccountNewCommand) SupportedArguments() []string { return []string{} }
-func (a *AccountNewCommand) FollowedBy() []string { return []string{ "account" } }
-func (a *AccountNewCommand) Execute(previousCmds []string, args []IArgument) {
+type AccountNewMCommand struct {}
+func (a *AccountNewMCommand) Text() string { return "_newmnemonic" }
+func (a *AccountNewMCommand) Description() string { return "Create a new mnemonic." }
+func (a *AccountNewMCommand) Subcommands() []string { return []string{} }
+func (a *AccountNewMCommand) SupportedArguments() []string { return []string{} }
+func (a *AccountNewMCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountNewMCommand) Execute(previousCmds []string, args []IArgument) {
 	m, err := swa.GenMnemonic()
 	if err == nil {
 		cliLogger.Debug("Mnemonic created: %v", m)
@@ -84,6 +85,18 @@ func (a *AccountDeriveCommand) Execute(previousCmds []string, args []IArgument) 
 	}
 }
 
+type AccountNewCommand struct {}
+func (a *AccountNewCommand) Text() string { return "new" }
+func (a *AccountNewCommand) Description() string { return "create a new account." }
+func (a *AccountNewCommand) Subcommands() []string { return []string{} }
+func (a *AccountNewCommand) SupportedArguments() []string { return []string{ } }
+func (a *AccountNewCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountNewCommand) Execute(previousCmds []string, args []IArgument) {
+	sn := node.GetSimpleNode()
+	addr := sn.Accounts.NewSingleAccount("")
+	cliLogger.Info("New account created: %v", addr)
+}
+
 type AccountListCommand struct {}
 func (a *AccountListCommand) Text() string { return "list" }
 func (a *AccountListCommand) Description() string { return "list all accounts." }
@@ -91,6 +104,32 @@ func (a *AccountListCommand) Subcommands() []string { return []string{} }
 func (a *AccountListCommand) SupportedArguments() []string { return []string{ } }
 func (a *AccountListCommand) FollowedBy() []string { return []string{ "account" } }
 func (a *AccountListCommand) Execute(previousCmds []string, args []IArgument) {
+	cliLogger.Info("Found %v account(s):", len(node.GetSimpleNode().Accounts.Accounts))
+	for n, account := range node.GetSimpleNode().Accounts.Accounts {
+		if node.GetSimpleNode().Accounts.CurrentAccount == account {
+			cliLogger.Info("-> %v) %v", n + 1, account.ECPubKey().ToAddressCompressed())
+		} else {
+			cliLogger.Info("   %v) %v", n + 1, account.ECPubKey().ToAddressCompressed())
+		}
+	}
+}
+
+type AccountUseCommand struct {}
+func (a *AccountUseCommand) Text() string { return "use" }
+func (a *AccountUseCommand) Description() string { return "use an account as current account for sending transaction or mining." }
+func (a *AccountUseCommand) Subcommands() []string { return []string{} }
+func (a *AccountUseCommand) SupportedArguments() []string { return []string{ "-addr" } }
+func (a *AccountUseCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountUseCommand) Execute(previousCmds []string, args []IArgument) {
+	if argAddr, ok := getArgument(args, "-addr"); ok {
+		if (node.GetSimpleNode().Accounts.Use(argAddr.GetValue())) {
+			cliLogger.Info("current account changed to %v", argAddr.GetValue())
+		} else {
+			cliLogger.Error("No such account: %v", argAddr.GetValue())
+		}
+	} else {
+		cliLogger.Warn("account address must be provided via -addr")
+	}
 }
 
 type AccountGetKeyArgumentMnemonic struct { *BaseArgument }
@@ -109,16 +148,24 @@ type AccountDeriveArgumentPath struct { *BaseArgument }
 func (a *AccountDeriveArgumentPath) Text() string { return "-path" }
 func (a *AccountDeriveArgumentPath) Description() string { return "The generation path for the derived key, like m/0." }
 
+type AccountUseArgumentPubkey struct { *BaseArgument }
+func (a *AccountUseArgumentPubkey) Text() string { return "-addr" }
+func (a *AccountUseArgumentPubkey) Description() string { return "The account address." }
 
 
 var __cmd_inst_account = &AccountCommand{}
-var __cmd_inst_account_new = &AccountNewCommand{}
+var __cmd_inst_account_newm = &AccountNewMCommand{}
 var __cmd_inst_account_getkey = &AccountGetKeyCommand{}
 var __cmd_inst_account_derive = &AccountDeriveCommand{}
+
+var __cmd_inst_account_new = &AccountNewCommand{}
+var __cmd_inst_account_list = &AccountListCommand{}
+var __cmd_inst_account_use = &AccountUseCommand{}
 
 var __arg_inst_account_getkey_m = &AccountGetKeyArgumentMnemonic{&BaseArgument{}}
 var __arg_inst_account_getkey_p = &AccountGetKeyArgumentPassword{&BaseArgument{}}
 var __arg_inst_account_derive_pwd = &AccountDeriveArgumentPassword{&BaseArgument{}}
 var __arg_inst_account_derive_path = &AccountDeriveArgumentPath{&BaseArgument{}}
+var __arg_inst_account_use_addr = &AccountUseArgumentPubkey{&BaseArgument{}}
 
 

@@ -7,9 +7,12 @@ import (
 
 var commands = []ICommand {
 	__cmd_inst_account,
-	__cmd_inst_account_new,
+	__cmd_inst_account_newm,
 	__cmd_inst_account_getkey,
 	__cmd_inst_account_derive,
+	__cmd_inst_account_new,
+	__cmd_inst_account_list,
+	__cmd_inst_account_use,
 }
 
 var arguments = []IArgument {
@@ -17,6 +20,7 @@ var arguments = []IArgument {
 	__arg_inst_account_getkey_p,
 	__arg_inst_account_derive_path,
 	__arg_inst_account_derive_pwd,
+	__arg_inst_account_use_addr,
 }
 
 func Completer(d prompt.Document) []prompt.Suggest {

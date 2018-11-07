@@ -4,14 +4,28 @@ import (
 	"github.com/symphonyprotocol/p2p"
 )
 
+var _SimpleNode *SimpleNode
+
 type SimpleNode struct {
-	p2pServer	*p2p.P2PServer
+	P2PServer	*p2p.P2PServer
+	Accounts	*NodeAccounts
+}
+
+func GetSimpleNode() *SimpleNode {
+	if _SimpleNode == nil {
+		_SimpleNode = InitSimpleNode()
+	}
+
+	return _SimpleNode
 }
 
 func InitSimpleNode() *SimpleNode {
 	n := &SimpleNode{
-		p2pServer:	p2p.NewP2PServer(),
+		P2PServer:	p2p.NewP2PServer(),
+		Accounts: LoadNodeAccounts(),
 	}
+
+	// n.P2PServer.Start()
 
 	return n
 }
