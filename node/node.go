@@ -20,12 +20,14 @@ func GetSimpleNode() *SimpleNode {
 }
 
 func InitSimpleNode() *SimpleNode {
-	n := &SimpleNode{
-		P2PServer:	p2p.NewP2PServer(),
-		Accounts: LoadNodeAccounts(),
+	if _SimpleNode == nil {
+		_SimpleNode = &SimpleNode{
+			P2PServer:	p2p.NewP2PServer(),
+			Accounts: LoadNodeAccounts(),
+		}
+	
+		go _SimpleNode.P2PServer.Start()
 	}
 
-	// n.P2PServer.Start()
-
-	return n
+	return _SimpleNode
 }
