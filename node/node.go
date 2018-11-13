@@ -3,7 +3,6 @@ package node
 import (
 	"github.com/symphonyprotocol/p2p/tcp"
 	"github.com/symphonyprotocol/p2p"
-	"github.com/symphonyprotocol/simple-node/node/middleware"
 )
 
 var _SimpleNode *SimpleNode
@@ -11,6 +10,7 @@ var _SimpleNode *SimpleNode
 type SimpleNode struct {
 	P2PServer	*p2p.P2PServer
 	Accounts	*NodeAccounts
+	Chain		*NodeChain
 }
 
 func GetSimpleNode() *SimpleNode {
@@ -26,10 +26,11 @@ func InitSimpleNode() *SimpleNode {
 		_SimpleNode = &SimpleNode{
 			P2PServer:	p2p.NewP2PServer(),
 			Accounts: LoadNodeAccounts(),
+			Chain: LoadNodeChain(),
 		}
 	
-		_SimpleNode.P2PServer.Use(&middleware.BlockSyncMiddleware{ BaseMiddleware: &tcp.BaseMiddleware{} })
-		_SimpleNode.P2PServer.Use(&middleware.TransactionMiddleware{ BaseMiddleware: &tcp.BaseMiddleware{} })
+		_SimpleNode.P2PServer.Use(&BlockSyncMiddleware{ BaseMiddleware: tcp.NewBaseMiddleware() })
+		_SimpleNode.P2PServer.Use(&TransactionMiddleware{ BaseMiddleware: tcp.NewBaseMiddleware() })
 		go _SimpleNode.P2PServer.Start()
 	}
 

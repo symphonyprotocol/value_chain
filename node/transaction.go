@@ -1,4 +1,4 @@
-package middleware
+package node
 
 import (
 	"github.com/symphonyprotocol/p2p/tcp"

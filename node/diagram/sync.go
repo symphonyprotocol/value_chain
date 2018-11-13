@@ -11,12 +11,16 @@ var (
 	BLOCK_SYNC = "/block/sync"
 
 	// respond to /block/sync with block headers
-	BLOCK_SYNC_RES = "/block/sync/res"
+	// BLOCK_SYNC_RES = "/block/sync/res"
+
+	BLOCK_HEADER = "/block/header"
+
+	BLOCK_HEADER_RES = "/block/header/res"
 
 	// msg broadcasted with block header from whom mined the block.
 	BLOCK_SEND = "/block/send"
 
-	// when node has no such block hash, ask for details
+	// when node has no such block, ask for details
 	BLOCK_REQ = "/block/req"
 
 	// send the details to the requester
@@ -25,17 +29,33 @@ var (
 
 type BlockSyncDiagram struct {
 	models.TCPDiagram
-	
-	// TODO: should be blockheader
-	LastBlock	block.Block
+	LastBlockHeader	block.BlockHeader
 }
 
-func NewBlockSyncDiagram(ctx *tcp.P2PContext, _block *block.Block) *BlockSyncDiagram {
+func NewBlockSyncDiagram(ctx *tcp.P2PContext, _blockHeader *block.BlockHeader) *BlockSyncDiagram {
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = BLOCK_SYNC
 	return &BlockSyncDiagram{
 		TCPDiagram: *tDiag,
-		LastBlock: *_block,
+		LastBlockHeader: *_blockHeader,
+	}
+}
+
+type BlockHeaderResDiagram struct {
+	models.TCPDiagram
+	HeightFrom	int64
+	HeightTo	int64
+	BlockHeaders []block.BlockHeader
+}
+
+func NewBlockSyncResDiagram(ctx *tcp.P2PContext, heightFrom, heightTo int64, _blockHeaders []block.BlockHeader) *BlockHeaderResDiagram {
+	tDiag := ctx.NewTCPDiagram()
+	tDiag.DType = BLOCK_HEADER_RES
+	return &BlockHeaderResDiagram{
+		TCPDiagram: *tDiag,
+		HeightFrom: heightFrom,
+		HeightTo: heightTo,
+		BlockHeaders: _blockHeaders,
 	}
 }
 
