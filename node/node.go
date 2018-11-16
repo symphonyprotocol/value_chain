@@ -29,7 +29,7 @@ func InitSimpleNode() *SimpleNode {
 			Chain: LoadNodeChain(),
 		}
 	
-		_SimpleNode.P2PServer.Use(&BlockSyncMiddleware{ BaseMiddleware: tcp.NewBaseMiddleware() })
+		_SimpleNode.P2PServer.Use(NewBlockSyncMiddleware())
 		_SimpleNode.P2PServer.Use(&TransactionMiddleware{ BaseMiddleware: tcp.NewBaseMiddleware() })
 		go _SimpleNode.P2PServer.Start()
 	}

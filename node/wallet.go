@@ -63,8 +63,13 @@ func (a *NodeAccounts) ImportAccount() {
 
 }
 
-func (a *NodeAccounts) ExportAccount() {
-
+func (a *NodeAccounts) ExportAccount(pubKey string) string {
+	for _, account := range a.Accounts {
+		if account.ECPubKey().ToAddressCompressed() == pubKey {
+			return account.ToWIFCompressed()
+		}
+	}
+	return ""
 }
 
 func (a *NodeAccounts) Use(pubKey string) (ok bool) {

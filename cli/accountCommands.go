@@ -10,7 +10,8 @@ func (a *AccountCommand) Text() string { return "account" }
 func (a *AccountCommand) Description() string { return "Account related commands" }
 func (a *AccountCommand) Subcommands() []string {
 	return []string{
-		"_newmnemonic", "_getkey", "_derivekey", "new", "list", "use",
+		"new", "list", "use", "export",
+		"_newmnemonic", "_getkey", "_derivekey",
 	}
 }
 func (a *AccountCommand) SupportedArguments() []string { return []string{} }
@@ -132,6 +133,25 @@ func (a *AccountUseCommand) Execute(previousCmds []string, args []IArgument) {
 	}
 }
 
+type AccountExportCommand struct {}
+func (a *AccountExportCommand) Text() string { return "export" }
+func (a *AccountExportCommand) Description() string { return "export an account's private key to wif." }
+func (a *AccountExportCommand) Subcommands() []string { return []string{} }
+func (a *AccountExportCommand) SupportedArguments() []string { return []string{ "-addr" } }
+func (a *AccountExportCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountExportCommand) Execute(previousCmds []string, args []IArgument) {
+	if argAddr, ok := getArgument(args, "-addr"); ok {
+		wif := node.GetSimpleNode().Accounts.ExportAccount(argAddr.GetValue())
+		if (wif != "") {
+			cliLogger.Info("Account exported (WIF Compress): %v", wif)
+		} else {
+			cliLogger.Error("No such account: %v", argAddr.GetValue())
+		}
+	} else {
+		cliLogger.Warn("account address must be provided via -addr")
+	}
+}
+
 type AccountGetKeyArgumentMnemonic struct { *BaseArgument }
 func (a *AccountGetKeyArgumentMnemonic) Text() string { return "-m" }
 func (a *AccountGetKeyArgumentMnemonic) Description() string { return "The mnemonic you have." }
@@ -161,6 +181,7 @@ var __cmd_inst_account_derive = &AccountDeriveCommand{}
 var __cmd_inst_account_new = &AccountNewCommand{}
 var __cmd_inst_account_list = &AccountListCommand{}
 var __cmd_inst_account_use = &AccountUseCommand{}
+var __cmd_inst_account_export = &AccountExportCommand{}
 
 var __arg_inst_account_getkey_m = &AccountGetKeyArgumentMnemonic{&BaseArgument{}}
 var __arg_inst_account_getkey_p = &AccountGetKeyArgumentPassword{&BaseArgument{}}

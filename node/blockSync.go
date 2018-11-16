@@ -1,6 +1,7 @@
 package node
 
 import (
+	"github.com/symphonyprotocol/p2p/node"
 	"math/rand"
 	"sync"
 	"github.com/symphonyprotocol/log"
@@ -22,6 +23,8 @@ type BlockSyncMiddleware struct {
 	downloadBlockHeaderQueue *ds.SequentialParallelTaskQueue
 	downloadBlockPendingMap	sync.Map
 	downloadBlockPendingTimeoutMap	sync.Map
+
+
 }
 
 func NewBlockSyncMiddleware() *BlockSyncMiddleware {
@@ -39,12 +42,18 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 	})
 	t.downloadBlockQueue = ds.NewSequentialParallelTaskQueue(100, func (tasks []*ds.ParallelTask) {
 		// we got blocks, need to save them.
-
+		bsLogger.Debug("We got finished blocks, going to save them.")
+		for _, task := range tasks {
+			if b, ok := task.Result.(*block.Block); ok {
+				bsLogger.Trace("Block: %v", b.Header.HashString())
+			}
+		}
 	})
 	t.downloadBlockHeaderQueue.Execute()
 	t.downloadBlockQueue.Execute()
 	t.regHandlers()
 	go t.syncLoop(ctx)
+	go t.mapCheckingLoop(ctx)
 }
 
 func (t *BlockSyncMiddleware) regHandlers() {
@@ -59,6 +68,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			myHeight := GetSimpleNode().Chain.GetMyHeight()
 			myLastBlock := GetSimpleNode().Chain.GetMyLastBlock()
 			targetHeight := syncDiag.LastBlockHeader.Height
+			bsLogger.Debug("Got BLOCK_SYNC diag: %v, myHeight: %v, myLastBlock: %v", syncDiag.LastBlockHeader, myHeight, myLastBlock)
 			if targetHeight > myHeight {
 				// ask for headers
 				// devide the load to peers
@@ -67,14 +77,19 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				// 		ctx.SendToPeer()
 				// 	},
 				// })
-
-				ctx.Send(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header))
+				bsLogger.Trace("Asking for headers")
+				if myLastBlock != nil {
+					ctx.Send(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header))
+				} else {
+					ctx.Send(diagram.NewBlockSyncDiagram(ctx, &block.BlockHeader{ Height: -1 }))
+				}
 			}
 
 			if targetHeight < myHeight && myLastBlock != nil {
+				bsLogger.Trace("Providing headers")
 				blockHeaders := make([]block.BlockHeader, 0, 0)
 				iterator := GetSimpleNode().Chain.chain.Iterator();
-				for b := iterator.Next(); b != nil; {
+				for b := iterator.Next(); b != nil; b = iterator.Next() {
 					blockHeaders = append(blockHeaders, b.Header)
 				}
 				
@@ -93,8 +108,18 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		var syncDiag diagram.BlockHeaderResDiagram
 		err := ctx.GetDiagram(&syncDiag)
 		if err == nil {
-			for _, header := range syncDiag.BlockHeaders {
-				t.downloadBlockChannel <- &header
+			bsLogger.Trace("Recieved headers")
+			for i := 0; i < len(syncDiag.BlockHeaders); i++ {
+				header := syncDiag.BlockHeaders[i]
+				cb, _ok := t.downloadBlockPendingMap.Load(header.HashString())
+				bsLogger.Info("callback: %v, %v, %v", cb, _ok, t.downloadBlockPendingMap)
+				bsLogger.Info("Looping with header: %v", header.HashString())
+				if _ok != true {
+					bsLogger.Trace("adding to download block channel: %v", header.HashString())
+					bsLogger.Trace("downloadblockchannel: %v, what is t?: %v", len(t.downloadBlockChannel), t)
+					t.downloadBlockChannel <- &header
+					bsLogger.Trace("downloadblockchannel: %v", len(t.downloadBlockChannel))
+				} 
 			}
 		}
 	})
@@ -104,11 +129,14 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		var bReqDiag diagram.BlockReqDiagram
 		err := ctx.GetDiagram(&bReqDiag)
 		if err == nil {
+			bsLogger.Trace("Going to provide block: %v", bReqDiag.BlockHeader.HashString())
 			myHeight := GetSimpleNode().Chain.GetMyHeight()
 			targetHeight := bReqDiag.BlockHeader.Height
-			if myHeight <= targetHeight {
+			if myHeight < targetHeight {
+				bsLogger.Warn("BOOM, my: %v, target: %v", myHeight, targetHeight)
 				// boom
 			} else {
+				bsLogger.Trace("Providing blocks")
 				ctx.Send(diagram.NewBlockReqResDiagram(ctx, GetSimpleNode().Chain.GetBlock(bReqDiag.BlockHeader.Hash)))
 			}
 		}
@@ -119,11 +147,15 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		var bReqResDiag diagram.BlockReqResDiagram
 		err := ctx.GetDiagram(&bReqResDiag)
 		if err == nil {
-			if _cb, _ok := t.downloadBlockPendingMap.Load(bReqResDiag.Block.Header); _ok {
+			bsLogger.Trace("Recieved Block !")
+			bsLogger.Info("callback map: %v", t.downloadBlockPendingMap)
+			if _cb, _ok := t.downloadBlockPendingMap.Load(bReqResDiag.Block.Header.HashString()); _ok {
+				bsLogger.Debug("Task is in pending map")
 				if cb, ok := _cb.(func(res interface{})); ok {
+					bsLogger.Debug("Recieved Block and going to store !")
 					cb(&bReqResDiag.Block)
 					// remove timeout map
-					t.downloadBlockPendingTimeoutMap.Delete(bReqResDiag.Block.Header)
+					t.downloadBlockPendingTimeoutMap.Delete(bReqResDiag.Block.Header.HashString())
 				}
 			}
 		}
@@ -135,28 +167,28 @@ func (t *BlockSyncMiddleware) regHandlers() {
 	})
 }
 
-// broadcast BLOCK_SYNC periodly, check timeout map periodly
+// broadcast BLOCK_SYNC periodly
 func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 	exit:
 	for {
+		time.Sleep(20 * time.Second)
 		peers := ctx.NodeProvider().GetNearbyNodes(20)
-		randPeer := peers[rand.Intn(len(peers))]
+		peersLength := len(peers)
+		var randPeer *node.RemoteNode = nil
+		if peersLength > 0 {
+			randPeer = peers[rand.Intn(peersLength)]
+		}
 		select {
 		case <- t.syncLoopExitSignal:
 			break exit
-		case header := <- t.downloadBlockChannel:
-			t.downloadBlockQueue.AddTask(&ds.ParallelTask{
-				Body: func(params []interface{}, cb func(res interface{})) {
-					t.downloadBlockPendingTimeoutMap.Store(header, time.Now())
-					t.downloadBlockPendingMap.Store(header, cb)
-					ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, header), randPeer)
-				},
-			})
 		default:
-			time.Sleep(5 * time.Minute)
+			bsLogger.Trace("Going to broadcast sync message")
 			myLastBlock := GetSimpleNode().Chain.GetMyLastBlock()
 			if myLastBlock != nil {
+				bsLogger.Trace("Broadcasting sync message")
 				ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header), 20, nil)
+			} else {
+				ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &block.BlockHeader{ Height: -1 }), 20, nil)
 			}
 
 			t.downloadBlockPendingTimeoutMap.Range(func(k, v interface{}) bool {
@@ -165,13 +197,47 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 						// boom
 						if header, ok := k.(block.BlockHeader); ok {
 							// ask from another guy, it's randomized, maybe it's another guy.
-							ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, &header), randPeer)
-							t.downloadBlockPendingTimeoutMap.Store(header, time.Now())
+							if randPeer != nil {
+								ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, &header), randPeer)
+								t.downloadBlockPendingTimeoutMap.Store(header.HashString(), time.Now())
+							}
 						}
 					}
 				}
 				return true
 			})
+		}
+	}
+}
+
+// check timeout map periodly
+func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
+	for {
+		peers := ctx.NodeProvider().GetNearbyNodes(20)
+		peersLength := len(peers)
+		var randPeer *node.RemoteNode = nil
+		if peersLength > 0 {
+			randPeer = peers[rand.Intn(peersLength)]
+		}
+
+		select {
+		case header := <- t.downloadBlockChannel:
+			bsLogger.Trace("added task to download block: %v", header.HashString())
+			t.downloadBlockQueue.AddTask(&ds.ParallelTask{
+				Body: func(params []interface{}, cb func(res interface{})) {
+					bsLogger.Trace("Going to ask for block!: %v", header.HashString())
+					t.downloadBlockPendingTimeoutMap.Store(header.HashString(), time.Now())
+					bsLogger.Debug("Storing to downloadBlockPendingMap with key: %v", header.HashString())
+					t.downloadBlockPendingMap.Store(header.HashString(), cb)
+					if randPeer != nil {
+						bsLogger.Trace("Asking for block!: %v", header.HashString())
+						ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, header), randPeer)
+					}
+				},
+			})
+		default:
+			time.Sleep(time.Millisecond)
+			continue
 		}
 	}
 }

@@ -13,6 +13,7 @@ var commands = []ICommand {
 	__cmd_inst_account_new,
 	__cmd_inst_account_list,
 	__cmd_inst_account_use,
+	__cmd_inst_account_export,
 }
 
 var arguments = []IArgument {

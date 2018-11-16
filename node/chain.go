@@ -47,7 +47,7 @@ func (c *NodeChain) HasBlock(hash []byte) bool {
 func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	if c.chain != nil {
 		iterator := c.chain.Iterator()
-		for b := iterator.Next(); b != nil; {
+		for b := iterator.Next(); b != nil; b = iterator.Next() {
 			if bytes.Compare(b.Header.Hash, hash) == 0 {
 				return b
 			}
