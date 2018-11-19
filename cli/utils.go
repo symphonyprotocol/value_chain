@@ -5,6 +5,12 @@ import (
 )
 
 func getArgumentsByStrings(s []string) []IArgument {
+	defer func() {
+		if err := recover(); err != nil {
+			cliLogger.Error("%v", err)
+		}
+	}()
+
 	cliLogger.Trace("Getting args from %v", s)
 	res := make([]IArgument, 0, 0)
 	for _, _arg := range s {

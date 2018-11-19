@@ -14,6 +14,9 @@ var commands = []ICommand {
 	__cmd_inst_account_list,
 	__cmd_inst_account_use,
 	__cmd_inst_account_export,
+
+	__cmd_inst_tx,
+	__cmd_inst_tx_send,
 }
 
 var arguments = []IArgument {
@@ -22,6 +25,10 @@ var arguments = []IArgument {
 	__arg_inst_account_derive_path,
 	__arg_inst_account_derive_pwd,
 	__arg_inst_account_use_addr,
+
+	__arg_inst_tx_amount,
+	__arg_inst_tx_from,
+	__arg_inst_tx_to,
 }
 
 func Completer(d prompt.Document) []prompt.Suggest {

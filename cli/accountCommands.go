@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/symphonyprotocol/simple-node/node"
 	"github.com/symphonyprotocol/swa"
+	"github.com/symphonyprotocol/scb/block"
 )
 
 type AccountCommand struct {}
@@ -10,7 +11,7 @@ func (a *AccountCommand) Text() string { return "account" }
 func (a *AccountCommand) Description() string { return "Account related commands" }
 func (a *AccountCommand) Subcommands() []string {
 	return []string{
-		"new", "list", "use", "export",
+		"new", "list", "use", "export", "getbalance",
 		"_newmnemonic", "_getkey", "_derivekey",
 	}
 }
@@ -147,8 +148,30 @@ func (a *AccountExportCommand) Execute(previousCmds []string, args []IArgument) 
 		} else {
 			cliLogger.Error("No such account: %v", argAddr.GetValue())
 		}
+	} else if node.GetSimpleNode().Accounts.CurrentAccount != nil {
+		wif := node.GetSimpleNode().Accounts.CurrentAccount.ToWIFCompressed()
+		cliLogger.Info("Account exported (WIF Compress): %v", wif)
 	} else {
-		cliLogger.Warn("account address must be provided via -addr")
+		cliLogger.Warn("Need an account been selected or pass the account via -addr")
+	}
+}
+
+type AccountGetBalanceCommand struct {}
+func (a *AccountGetBalanceCommand) Text() string { return "getbalance" }
+func (a *AccountGetBalanceCommand) Description() string { return "get the balance of an account." }
+func (a *AccountGetBalanceCommand) Subcommands() []string { return []string{} }
+func (a *AccountGetBalanceCommand) SupportedArguments() []string { return []string{ "-addr" } }
+func (a *AccountGetBalanceCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountGetBalanceCommand) Execute(previousCmds []string, args []IArgument) {
+	if argAddr, ok := getArgument(args, "-addr"); ok {
+		res := block.GetBalance(argAddr.GetValue())
+		cliLogger.Info("Account %v's balance: %v", argAddr.GetValue(), res)
+	} else if node.GetSimpleNode().Accounts.CurrentAccount != nil {
+		addr := node.GetSimpleNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
+		res := block.GetBalance(addr)
+		cliLogger.Info("Account %v's balance: %v", addr, res)
+	} else {
+		cliLogger.Warn("Need an account been selected or pass the account via -addr")
 	}
 }
 

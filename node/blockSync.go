@@ -1,6 +1,7 @@
 package node
 
 import (
+	"sort"
 	"github.com/symphonyprotocol/p2p/node"
 	"math/rand"
 	"sync"
@@ -42,10 +43,18 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 	})
 	t.downloadBlockQueue = ds.NewSequentialParallelTaskQueue(100, func (tasks []*ds.ParallelTask) {
 		// we got blocks, need to save them.
+		// defer func() {
+		// 	if err := recover(); err != nil {
+		// 		bsLogger.Error("%v", err)
+		// 	}
+		// }()
+
 		bsLogger.Debug("We got finished blocks, going to save them.")
 		for _, task := range tasks {
 			if b, ok := task.Result.(*block.Block); ok {
-				bsLogger.Trace("Block: %v", b.Header.HashString())
+				bsLogger.Trace("Going to save Block: %v", b.Header)
+				GetSimpleNode().Chain.SaveBlock(b)
+				t.downloadBlockPendingMap.Delete(b.Header.HashString())
 			}
 		}
 	})
@@ -92,6 +101,10 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				for b := iterator.Next(); b != nil; b = iterator.Next() {
 					blockHeaders = append(blockHeaders, b.Header)
 				}
+
+				sort.Slice(blockHeaders[:], func(i, j int) bool {
+					return blockHeaders[i].Height < blockHeaders[j].Height
+				})
 				
 				ctx.Send(diagram.NewBlockHeaderResDiagram(ctx, targetHeight, myHeight, blockHeaders))
 			}
@@ -111,8 +124,8 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			bsLogger.Trace("Recieved headers")
 			for i := 0; i < len(syncDiag.BlockHeaders); i++ {
 				header := syncDiag.BlockHeaders[i]
-				cb, _ok := t.downloadBlockPendingMap.Load(header.HashString())
-				bsLogger.Info("callback: %v, %v, %v", cb, _ok, t.downloadBlockPendingMap)
+				_, _ok := t.downloadBlockPendingMap.Load(header.HashString())
+				// bsLogger.Info("callback: %v, %v, %v", cb, _ok, t.downloadBlockPendingMap)
 				bsLogger.Info("Looping with header: %v", header.HashString())
 				if _ok != true {
 					bsLogger.Trace("adding to download block channel: %v", header.HashString())
@@ -148,7 +161,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		err := ctx.GetDiagram(&bReqResDiag)
 		if err == nil {
 			bsLogger.Trace("Recieved Block !")
-			bsLogger.Info("callback map: %v", t.downloadBlockPendingMap)
+			// bsLogger.Info("callback map: %v", t.downloadBlockPendingMap)
 			if _cb, _ok := t.downloadBlockPendingMap.Load(bReqResDiag.Block.Header.HashString()); _ok {
 				bsLogger.Debug("Task is in pending map")
 				if cb, ok := _cb.(func(res interface{})); ok {
@@ -174,7 +187,7 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 		time.Sleep(20 * time.Second)
 		peers := ctx.NodeProvider().GetNearbyNodes(20)
 		peersLength := len(peers)
-		var randPeer *node.RemoteNode = nil
+		var randPeer *node.RemoteNode
 		if peersLength > 0 {
 			randPeer = peers[rand.Intn(peersLength)]
 		}
@@ -215,7 +228,7 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 	for {
 		peers := ctx.NodeProvider().GetNearbyNodes(20)
 		peersLength := len(peers)
-		var randPeer *node.RemoteNode = nil
+		var randPeer *node.RemoteNode
 		if peersLength > 0 {
 			randPeer = peers[rand.Intn(peersLength)]
 		}

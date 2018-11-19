@@ -6,7 +6,7 @@ import (
 	"github.com/symphonyprotocol/log"
 )
 
-var cliLogger = log.GetLogger("cli")
+var cliLogger = log.GetLogger("cli").SetLevel(log.INFO)
 
 type CLI struct {}
 
@@ -20,7 +20,6 @@ func (c *CLI) Init() {
 	// 	}, d.GetWordBeforeCursor(), true)
 	// })
 
-	cliLogger.SetLevel(log.INFO)
 	p := prompt.New(
 		Executor,
 		Completer,

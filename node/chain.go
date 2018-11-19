@@ -13,9 +13,9 @@ type NodeChain struct {
 }
 
 func LoadNodeChain() (result *NodeChain) {
-	the_chain := block.CreateEmptyBlockchain()
+	theChain := block.CreateEmptyBlockchain()
 	return &NodeChain{
-		chain: the_chain,
+		chain: theChain,
 	}
 }
 
@@ -44,6 +44,10 @@ func (c *NodeChain) HasBlock(hash []byte) bool {
 	return false
 }
 
+func (c *NodeChain) HasPendingTransaction(id []byte) bool {
+	return c.chain.FindUnpackTransactionById(id) != nil
+}
+
 func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	if c.chain != nil {
 		iterator := c.chain.Iterator()
@@ -57,7 +61,7 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	return nil
 }
 
-func (c *NodeChain) SaveBlock(the_block *block.Block) {
-
+func (c *NodeChain) SaveBlock(theBlock *block.Block) {
+	c.chain.AcceptNewBlock(theBlock)
 }
 
