@@ -52,8 +52,9 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 		bsLogger.Debug("We got finished blocks, going to save them.")
 		for _, task := range tasks {
 			if b, ok := task.Result.(*block.Block); ok {
-				bsLogger.Trace("Going to save Block: %v", b.Header)
+				bsLogger.Trace("Going to save Block: %v: %v", b.Header.HashString(), b.Header)
 				GetSimpleNode().Chain.SaveBlock(b)
+				bsLogger.Trace("Block saved: %v", b.Header.HashString())
 				t.downloadBlockPendingMap.Delete(b.Header.HashString())
 			}
 		}
@@ -99,7 +100,9 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				blockHeaders := make([]block.BlockHeader, 0, 0)
 				iterator := GetSimpleNode().Chain.chain.Iterator();
 				for b := iterator.Next(); b != nil; b = iterator.Next() {
-					blockHeaders = append(blockHeaders, b.Header)
+					if b.Header.Height > targetHeight {
+						blockHeaders = append(blockHeaders, b.Header)
+					}
 				}
 
 				sort.Slice(blockHeaders[:], func(i, j int) bool {
@@ -107,6 +110,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				})
 				
 				ctx.Send(diagram.NewBlockHeaderResDiagram(ctx, targetHeight, myHeight, blockHeaders))
+				bsLogger.Trace("Provided headers count: %v", len(blockHeaders))
 			}
 
 			if targetHeight < myHeight && myLastBlock == nil {
