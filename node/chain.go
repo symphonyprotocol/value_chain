@@ -62,7 +62,8 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 }
 
 func (c *NodeChain) SaveBlock(theBlock *block.Block) {
-	c.chain.AcceptNewBlock(theBlock)
-	c.chain = block.LoadBlockchain()
+	if c.chain != nil { 
+		c.chain.AcceptNewBlock(theBlock)
+	}
 }
 
