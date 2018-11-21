@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"sort"
 	"github.com/symphonyprotocol/p2p/node"
 	"math/rand"
@@ -131,6 +132,11 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				_, _ok := t.downloadBlockPendingMap.Load(header.HashString())
 				// bsLogger.Info("callback: %v, %v, %v", cb, _ok, t.downloadBlockPendingMap)
 				bsLogger.Info("Looping with header: %v", header.HashString())
+				if GetSimpleNode().Chain.HasBlock(header.Hash) {
+					bsLogger.Warn("Already has this block saved, will not loop it !!!")
+					continue
+				}
+				
 				if _ok != true {
 					bsLogger.Trace("adding to download block channel: %v", header.HashString())
 					bsLogger.Trace("downloadblockchannel: %v, what is t?: %v", len(t.downloadBlockChannel), t)
@@ -258,3 +264,11 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 		}
 	}
 }
+
+func (b *BlockSyncMiddleware) DashboardData() interface{} { return [][]string{
+	[]string{ "Current Block Height", fmt.Sprintf("%v", GetSimpleNode().Chain.GetMyHeight()) },
+	[]string{ "Pending Download Blocks Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadBlockPendingMap)) },
+} }
+func (b *BlockSyncMiddleware) DashboardType() string { return "table" }
+func (b *BlockSyncMiddleware) DashboardTitle() string { return "Block Syncing" }
+func (b *BlockSyncMiddleware) DashboardTableHasColumnTitles() bool { return false }

@@ -205,6 +205,7 @@ var __cmd_inst_account_new = &AccountNewCommand{}
 var __cmd_inst_account_list = &AccountListCommand{}
 var __cmd_inst_account_use = &AccountUseCommand{}
 var __cmd_inst_account_export = &AccountExportCommand{}
+var __cmd_inst_account_getbalance = &AccountGetBalanceCommand{}
 
 var __arg_inst_account_getkey_m = &AccountGetKeyArgumentMnemonic{&BaseArgument{}}
 var __arg_inst_account_getkey_p = &AccountGetKeyArgumentPassword{&BaseArgument{}}

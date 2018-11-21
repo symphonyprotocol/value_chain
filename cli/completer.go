@@ -14,9 +14,12 @@ var commands = []ICommand {
 	__cmd_inst_account_list,
 	__cmd_inst_account_use,
 	__cmd_inst_account_export,
+	__cmd_inst_account_getbalance,
 
 	__cmd_inst_tx,
 	__cmd_inst_tx_send,
+
+	__cmd_inst_status,
 }
 
 var arguments = []IArgument {

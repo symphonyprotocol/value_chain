@@ -41,6 +41,9 @@ func (c *NodeChain) GetMyLastBlock() *block.Block {
 
 func (c *NodeChain) HasBlock(hash []byte) bool {
 	//TODO: implementation
+	if c.chain != nil {
+		return c.chain.HasBlock(hash)
+	}
 	return false
 }
 
