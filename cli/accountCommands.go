@@ -164,12 +164,15 @@ func (a *AccountGetBalanceCommand) SupportedArguments() []string { return []stri
 func (a *AccountGetBalanceCommand) FollowedBy() []string { return []string{ "account" } }
 func (a *AccountGetBalanceCommand) Execute(previousCmds []string, args []IArgument) {
 	if argAddr, ok := getArgument(args, "-addr"); ok {
-		res := block.GetBalance(argAddr.GetValue())
-		cliLogger.Info("Account %v's balance: %v", argAddr.GetValue(), res)
+		addr := argAddr.GetValue()
+		res := block.GetBalance(addr, false)
+		gasRes := block.GetBalance(addr, true)
+		cliLogger.Info("Account %v's balance: %v, gas balance: %v", addr, res, gasRes)
 	} else if node.GetSimpleNode().Accounts.CurrentAccount != nil {
 		addr := node.GetSimpleNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
-		res := block.GetBalance(addr)
-		cliLogger.Info("Account %v's balance: %v", addr, res)
+		res := block.GetBalance(addr, false)
+		gasRes := block.GetBalance(addr, true)
+		cliLogger.Info("Account %v's balance: %v, gas balance: %v", addr, res, gasRes)
 	} else {
 		cliLogger.Warn("Need an account been selected or pass the account via -addr")
 	}

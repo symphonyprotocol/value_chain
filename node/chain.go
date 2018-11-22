@@ -51,6 +51,7 @@ func (c *NodeChain) HasPendingTransaction(id []byte) bool {
 	return c.chain.FindUnpackTransactionById(id) != nil
 }
 
+// boom. should not be this way.
 func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	if c.chain != nil {
 		iterator := c.chain.Iterator()
@@ -67,6 +68,12 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 	if c.chain != nil { 
 		c.chain.AcceptNewBlock(theBlock)
+	}
+}
+
+func (c *NodeChain) SavePendingTx(theTx *block.Transaction) {
+	if c.chain != nil {
+		c.chain.SaveTransaction(theTx)
 	}
 }
 

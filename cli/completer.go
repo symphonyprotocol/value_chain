@@ -20,6 +20,8 @@ var commands = []ICommand {
 	__cmd_inst_tx_send,
 
 	__cmd_inst_status,
+
+	__cmd_inst_mine,
 }
 
 var arguments = []IArgument {

@@ -37,7 +37,7 @@ func Executor(s string) {
 					}
 				}
 			}
-			if !failed {
+			if !failed || len(cmd.FollowedBy()) == 0 {
 				cliLogger.Debug("Executing")
 				cmd.Execute(words[:cmdIndex], getArgumentsByStrings(words[cmdIndex + 1:]))
 			}

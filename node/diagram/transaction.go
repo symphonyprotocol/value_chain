@@ -18,7 +18,7 @@ var (
 )
 
 type TransactionSendDiagram struct {
-	models.TCPDiagram
+	*models.TCPDiagram
 	block.Transaction
 }
 
@@ -26,7 +26,7 @@ func NewTransactionSendDiagram(ctx *tcp.P2PContext, tx *block.Transaction) *Tran
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = TX_SEND
 	return &TransactionSendDiagram{
-		TCPDiagram: *tDiag,
+		TCPDiagram: tDiag,
 		Transaction: *tx,
 	}
 }
