@@ -1,6 +1,7 @@
 package node
 
 import (
+	"sync"
 	"github.com/symphonyprotocol/scb/block"
 	"github.com/symphonyprotocol/simple-node/node/diagram"
 	"time"
@@ -13,8 +14,9 @@ type NodeMiner struct {
 	isMining	bool
 	isIdle		bool	// when isMining is true and there's no pending tx for packaging
 
-	//TODO: need to add lock this value
 	runningPow	*block.ProofOfWork
+
+	mtx			sync.RWMutex
 	stopSign	chan struct{}
 }
 
@@ -37,10 +39,12 @@ func (n *NodeMiner) StartMining() {
 		for {
 			select {
 			case <- n.stopSign:
+				n.mtx.Lock()
 				if n.runningPow != nil {
 					n.runningPow.Stop()
 					n.runningPow = nil
 				}
+				n.mtx.Unlock()
 			default:
 				time.Sleep(time.Millisecond)
 				sNode := GetSimpleNode()
@@ -51,6 +55,7 @@ func (n *NodeMiner) StartMining() {
 					pendingTxs = append(pendingTxs, v...)
 				}
 
+				n.mtx.Lock()
 				if len(pendingTxs) > 0 && n.runningPow == nil {
 					n.runningPow = block.Mine(currentAccount, func(txs []*block.Transaction) {
 						// broadcast
@@ -64,9 +69,12 @@ func (n *NodeMiner) StartMining() {
 							ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &block.BlockHeader{ Height: -1 }), 20, nil)
 						}
 						// need lock here
+						n.mtx.Lock()
 						n.runningPow = nil
+						n.mtx.Unlock()
 					})
 				}
+				n.mtx.Unlock()
 			}
 		}
 	}()

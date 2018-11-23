@@ -18,6 +18,7 @@ func Executor(s string) {
 
 	words := splitWithQuotes(s)
 	cmdIndex, lastCmd := findLastCommand(words, true)
+	allCmds := findAllCommands(words)
 
 	for _, cmd := range commands {
 		if lastCmd == cmd.Text() {
@@ -26,7 +27,7 @@ func Executor(s string) {
 			for j := cmdIndex - 1; j >= 0; j-- {
 				followedBy := cmd.FollowedBy()[len(cmd.FollowedBy()) - cmdIndex + j]
 				for _, _cmd := range commands {
-					if _cmd.Text() == followedBy && followedBy != "" {
+					if _cmd.Text() == followedBy && followedBy != "" && cmdIndex > 0 && allCmds[cmdIndex - 1] == followedBy {
 						// good
 						cliLogger.Trace("Good for %v", followedBy)
 						failed = false

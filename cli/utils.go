@@ -106,3 +106,17 @@ func findLastCommand(words []string, hasEmptySuffix bool) (int, string) {
 
 	return -1, ""
 }
+
+func findAllCommands(words []string) []string {
+	res := make([]string, 0, 0)
+	for _, cmd := range words {
+		if strings.HasPrefix(cmd, "-") {
+			continue
+		} else {
+			// this is a command
+			res = append(res, cmd)
+		}
+	}
+
+	return res
+}

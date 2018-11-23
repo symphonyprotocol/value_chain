@@ -22,6 +22,10 @@ var commands = []ICommand {
 	__cmd_inst_status,
 
 	__cmd_inst_mine,
+
+	__cmd_inst_blockchain,
+	__cmd_inst_blockchain_new,
+	__cmd_inst_blockchain_list,
 }
 
 var arguments = []IArgument {

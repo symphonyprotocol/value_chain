@@ -52,6 +52,9 @@ func (a *NodeAccounts) NewSingleAccount(pwd string) string {
 				walletLogger.Trace("Successfully created the account: %v", addr)
 				a.Accounts = append(a.Accounts, k)
 				a.storeAccount(k)
+				if len(a.Accounts) == 1 {
+					a.CurrentAccount = k
+				}
 				return addr
 			}
 		}
