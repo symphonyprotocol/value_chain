@@ -12,6 +12,8 @@ var mLogger = log.GetLogger("miner")
 type NodeMiner struct {
 	isMining	bool
 	isIdle		bool	// when isMining is true and there's no pending tx for packaging
+
+	//TODO: need to add lock this value
 	runningPow	*block.ProofOfWork
 	stopSign	chan struct{}
 }
@@ -61,6 +63,8 @@ func (n *NodeMiner) StartMining() {
 						} else {
 							ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &block.BlockHeader{ Height: -1 }), 20, nil)
 						}
+						// need lock here
+						n.runningPow = nil
 					})
 				}
 			}
