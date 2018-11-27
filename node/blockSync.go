@@ -56,6 +56,12 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 				bsLogger.Trace("Going to save Block: %v: %v", b.Header.HashString(), b.Header)
 				GetSimpleNode().Chain.SaveBlock(b)
 				bsLogger.Trace("Block saved: %v", b.Header.HashString())
+				// restart mining if mining is true
+				if GetSimpleNode().Miner.IsMining() && !GetSimpleNode().Miner.IsIdle() {
+					bsLogger.Info("Cancelled mining !")
+					GetSimpleNode().Miner.StopMining()
+					GetSimpleNode().Miner.StartMining()
+				}
 				t.downloadBlockPendingMap.Delete(b.Header.HashString())
 			}
 		}

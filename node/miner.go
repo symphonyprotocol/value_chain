@@ -26,16 +26,23 @@ func NewNodeMiner() *NodeMiner {
 	}
 }
 
-func (n *NodeMiner) IsMining() bool { return n.isMining }
+func (n *NodeMiner) IsMining() bool { 
+	n.mtx.Lock()
+	defer n.mtx.Unlock()
+	return n.isMining 
+}
 
 func (n *NodeMiner) StartMining() {
+	n.mtx.Lock()
 	if n.isMining {
 		mLogger.Warn("The miner is already working")
 		return
 	}
 
 	n.isMining = true
+	n.mtx.Unlock()
 	go func() {
+BREAK_LOOP:
 		for {
 			select {
 			case <- n.stopSign:
@@ -45,6 +52,7 @@ func (n *NodeMiner) StartMining() {
 					n.runningPow = nil
 				}
 				n.mtx.Unlock()
+				break BREAK_LOOP
 			default:
 				time.Sleep(time.Millisecond)
 				sNode := GetSimpleNode()
@@ -81,15 +89,21 @@ func (n *NodeMiner) StartMining() {
 }
 
 func (n *NodeMiner) StopMining() {
+	n.mtx.Lock()
 	if !n.isMining {
 		mLogger.Warn("The miner already stopped")
 		return
 	}
 
 	n.isMining = false
+	n.mtx.Unlock()
 	n.stopSign <- struct{}{}
 }
 
 func (n *NodeMiner) IsIdle() bool {
-	return n.runningPow == nil
+	result := false
+	n.mtx.Lock()
+	defer n.mtx.Unlock()
+	result = n.runningPow == nil
+	return result
 }
