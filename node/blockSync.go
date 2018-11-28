@@ -164,6 +164,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			if myHeight < targetHeight {
 				bsLogger.Warn("BOOM, my: %v, target: %v", myHeight, targetHeight)
 				// boom
+				ctx.Send(diagram.NewBlockReqResDiagram(ctx, &block.Block{ Header: block.BlockHeader{ Hash: bReqDiag.BlockHeader.Hash, Height: bReqDiag.BlockHeader.Height, Signature: nil } }))
 			} else {
 				bsLogger.Trace("Providing blocks")
 				ctx.Send(diagram.NewBlockReqResDiagram(ctx, GetSimpleNode().Chain.GetBlock(bReqDiag.BlockHeader.Hash)))
@@ -177,14 +178,29 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		err := ctx.GetDiagram(&bReqResDiag)
 		if err == nil {
 			bsLogger.Trace("Recieved Block !")
-			// bsLogger.Info("callback map: %v", t.downloadBlockPendingMap)
-			if _cb, _ok := t.downloadBlockPendingMap.Load(bReqResDiag.Block.Header.HashString()); _ok {
-				bsLogger.Debug("Task is in pending map")
-				if cb, ok := _cb.(func(res interface{})); ok {
-					bsLogger.Debug("Recieved Block and going to store !")
-					cb(&bReqResDiag.Block)
-					// remove timeout map
-					t.downloadBlockPendingTimeoutMap.Delete(bReqResDiag.Block.Header.HashString())
+			if bReqResDiag.Block.Transactions == nil && bReqResDiag.Block.Header.Signature == nil {
+				bsLogger.Warn("The target has no such a block, need to retry !!!!!")
+				
+				peers := ctx.NodeProvider().GetNearbyNodes(20)
+				peersLength := len(peers)
+				var randPeer *node.RemoteNode
+				if peersLength > 0 {
+					randPeer = peers[rand.Intn(peersLength)]
+				}
+				bsLogger.Trace("Retrying to ask from %v !!!!!", randPeer.GetRemoteIP())
+				
+				ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, &bReqResDiag.Block.Header), randPeer)
+				t.downloadBlockPendingTimeoutMap.Store(bReqResDiag.Block.Header.HashString(), time.Now())
+			} else {
+				// bsLogger.Info("callback map: %v", t.downloadBlockPendingMap)
+				if _cb, _ok := t.downloadBlockPendingMap.Load(bReqResDiag.Block.Header.HashString()); _ok {
+					bsLogger.Debug("Task is in pending map")
+					if cb, ok := _cb.(func(res interface{})); ok {
+						bsLogger.Debug("Recieved Block and going to store !")
+						cb(bReqResDiag.Block)
+						// remove timeout map
+						t.downloadBlockPendingTimeoutMap.Delete(bReqResDiag.Block.Header.HashString())
+					}
 				}
 			}
 		}
@@ -227,6 +243,7 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 						if header, ok := k.(block.BlockHeader); ok {
 							// ask from another guy, it's randomized, maybe it's another guy.
 							if randPeer != nil {
+								bsLogger.Trace("Asking from %v !!!!!", randPeer.GetRemoteIP())
 								ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, &header), randPeer)
 								t.downloadBlockPendingTimeoutMap.Store(header.HashString(), time.Now())
 							}

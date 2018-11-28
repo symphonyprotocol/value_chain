@@ -28,21 +28,21 @@ var (
 )
 
 type BlockSyncDiagram struct {
-	models.TCPDiagram
-	LastBlockHeader	block.BlockHeader
+	*models.TCPDiagram
+	LastBlockHeader	*block.BlockHeader
 }
 
 func NewBlockSyncDiagram(ctx *tcp.P2PContext, _blockHeader *block.BlockHeader) *BlockSyncDiagram {
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = BLOCK_SYNC
 	return &BlockSyncDiagram{
-		TCPDiagram: *tDiag,
-		LastBlockHeader: *_blockHeader,
+		TCPDiagram: tDiag,
+		LastBlockHeader: _blockHeader,
 	}
 }
 
 type BlockHeaderResDiagram struct {
-	models.TCPDiagram
+	*models.TCPDiagram
 	HeightFrom	int64
 	HeightTo	int64
 	BlockHeaders []block.BlockHeader
@@ -52,7 +52,7 @@ func NewBlockHeaderResDiagram(ctx *tcp.P2PContext, heightFrom, heightTo int64, _
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = BLOCK_HEADER_RES
 	return &BlockHeaderResDiagram{
-		TCPDiagram: *tDiag,
+		TCPDiagram: tDiag,
 		HeightFrom: heightFrom,
 		HeightTo: heightTo,
 		BlockHeaders: _blockHeaders,
@@ -60,30 +60,30 @@ func NewBlockHeaderResDiagram(ctx *tcp.P2PContext, heightFrom, heightTo int64, _
 }
 
 type BlockReqDiagram struct {
-	models.TCPDiagram
-	BlockHeader	block.BlockHeader
+	*models.TCPDiagram
+	BlockHeader	*block.BlockHeader
 }
 
 func NewBlockReqDiagram(ctx *tcp.P2PContext, _blockHeader *block.BlockHeader) *BlockReqDiagram {
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = BLOCK_REQ
 	return &BlockReqDiagram{
-		TCPDiagram: *tDiag,
-		BlockHeader: *_blockHeader,
+		TCPDiagram: tDiag,
+		BlockHeader: _blockHeader,
 	}
 }
 
 type BlockReqResDiagram struct {
-	models.TCPDiagram
-	Block 	block.Block
+	*models.TCPDiagram
+	Block 	*block.Block
 }
 
 func NewBlockReqResDiagram(ctx *tcp.P2PContext, _block *block.Block) *BlockReqResDiagram {
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = BLOCK_REQ_RES
 	return &BlockReqResDiagram{
-		TCPDiagram: *tDiag,
-		Block:	*_block,
+		TCPDiagram: tDiag,
+		Block:	_block,
 	}
 }
 
