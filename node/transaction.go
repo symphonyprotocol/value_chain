@@ -5,6 +5,7 @@ import (
 	"github.com/symphonyprotocol/p2p/tcp"
 	p2pNode "github.com/symphonyprotocol/p2p/node"
 	"github.com/symphonyprotocol/log"
+	"fmt"
 )
 
 var tLogger = log.GetLogger("TxSyncMiddleware")
@@ -56,3 +57,10 @@ func (t *TransactionMiddleware) regHandlers() {
 		// recieve and save to pending trans list
 	})
 }
+
+func (b *TransactionMiddleware) DashboardData() interface{} { return [][]string{
+	[]string{ "Current Pending Tx Count", fmt.Sprintf("%v", len(GetSimpleNode().Chain.chain.FindAllUnpackTransaction())) },
+} }
+func (b *TransactionMiddleware) DashboardType() string { return "table" }
+func (b *TransactionMiddleware) DashboardTitle() string { return "Transaction Syncing" }
+func (b *TransactionMiddleware) DashboardTableHasColumnTitles() bool { return false }

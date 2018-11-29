@@ -1,6 +1,7 @@
 package node
 
 import (
+	"time"
 	"github.com/symphonyprotocol/p2p/tcp"
 	"github.com/symphonyprotocol/p2p"
 	"fmt"
@@ -13,6 +14,7 @@ type SimpleNode struct {
 	Accounts	*NodeAccounts
 	Chain		*NodeChain
 	Miner		*NodeMiner
+	startTime	time.Time
 }
 
 func GetSimpleNode() *SimpleNode {
@@ -30,6 +32,7 @@ func InitSimpleNode() *SimpleNode {
 			Accounts: LoadNodeAccounts(),
 			Chain: LoadNodeChain(),
 			Miner: NewNodeMiner(),
+			startTime: time.Now(),
 		}
 	
 		_SimpleNode.P2PServer.Use(NewBlockSyncMiddleware())
@@ -43,6 +46,10 @@ func InitSimpleNode() *SimpleNode {
 func (b *SimpleNode) DashboardData() interface{} { return [][]string{
 	[]string{ "ID: ", fmt.Sprintf("%v", b.P2PServer.GetP2PContext().LocalNode().GetID()) },
 	[]string{ "Is Mining: ", fmt.Sprintf("%v", GetSimpleNode().Chain.GetMyHeight()) },
+	[]string{ "PubKey:", b.P2PServer.GetP2PContext().LocalNode().GetPublicKey()},
+	[]string{ "Local Address:", fmt.Sprintf("%v:%v", b.P2PServer.GetP2PContext().LocalNode().GetLocalIP().String(), b.P2PServer.GetP2PContext().LocalNode().GetLocalPort())},
+	[]string{ "Remote Address:", fmt.Sprintf("%v:%v", b.P2PServer.GetP2PContext().LocalNode().GetRemoteIP().String(), b.P2PServer.GetP2PContext().LocalNode().GetRemotePort())},
+	[]string{ "Up time:", fmt.Sprintf("%v", time.Since(b.startTime))},
 } }
 func (b *SimpleNode) DashboardType() string { return "table" }
 func (b *SimpleNode) DashboardTitle() string { return "Simple Node" }
