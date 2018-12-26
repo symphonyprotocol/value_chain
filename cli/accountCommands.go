@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/symphonyprotocol/simple-node/node"
+	"github.com/symphonyprotocol/value_chain/node"
 	"github.com/symphonyprotocol/swa"
 	"github.com/symphonyprotocol/scb/block"
 )
@@ -31,7 +31,7 @@ func (a *AccountNewMCommand) Execute(previousCmds []string, args []IArgument) {
 	m, err := swa.GenMnemonic()
 	if err == nil {
 		cliLogger.Debug("Mnemonic created: %v", m)
-	} else {
+	} else {p
 		cliLogger.Error("%v", err)
 	}
 }
@@ -94,7 +94,7 @@ func (a *AccountNewCommand) Subcommands() []string { return []string{} }
 func (a *AccountNewCommand) SupportedArguments() []string { return []string{ } }
 func (a *AccountNewCommand) FollowedBy() []string { return []string{ "account" } }
 func (a *AccountNewCommand) Execute(previousCmds []string, args []IArgument) {
-	sn := node.GetSimpleNode()
+	sn := node.GetValueChainNode()
 	addr := sn.Accounts.NewSingleAccount("")
 	cliLogger.Info("New account created: %v", addr)
 }
@@ -106,9 +106,9 @@ func (a *AccountListCommand) Subcommands() []string { return []string{} }
 func (a *AccountListCommand) SupportedArguments() []string { return []string{ } }
 func (a *AccountListCommand) FollowedBy() []string { return []string{ "account" } }
 func (a *AccountListCommand) Execute(previousCmds []string, args []IArgument) {
-	cliLogger.Info("Found %v account(s):", len(node.GetSimpleNode().Accounts.Accounts))
-	for n, account := range node.GetSimpleNode().Accounts.Accounts {
-		if node.GetSimpleNode().Accounts.CurrentAccount == account {
+	cliLogger.Info("Found %v account(s):", len(node.GetValueChainNode().Accounts.Accounts))
+	for n, account := range node.GetValueChainNode().Accounts.Accounts {
+		if node.GetValueChainNode().Accounts.CurrentAccount == account {
 			cliLogger.Info("-> %v) %v", n + 1, account.ECPubKey().ToAddressCompressed())
 		} else {
 			cliLogger.Info("   %v) %v", n + 1, account.ECPubKey().ToAddressCompressed())
@@ -124,7 +124,7 @@ func (a *AccountUseCommand) SupportedArguments() []string { return []string{ "-a
 func (a *AccountUseCommand) FollowedBy() []string { return []string{ "account" } }
 func (a *AccountUseCommand) Execute(previousCmds []string, args []IArgument) {
 	if argAddr, ok := getArgument(args, "-addr"); ok {
-		if (node.GetSimpleNode().Accounts.Use(argAddr.GetValue())) {
+		if (node.GetValueChainNode().Accounts.Use(argAddr.GetValue())) {
 			cliLogger.Info("current account changed to %v", argAddr.GetValue())
 		} else {
 			cliLogger.Error("No such account: %v", argAddr.GetValue())
@@ -142,14 +142,14 @@ func (a *AccountExportCommand) SupportedArguments() []string { return []string{ 
 func (a *AccountExportCommand) FollowedBy() []string { return []string{ "account" } }
 func (a *AccountExportCommand) Execute(previousCmds []string, args []IArgument) {
 	if argAddr, ok := getArgument(args, "-addr"); ok {
-		wif := node.GetSimpleNode().Accounts.ExportAccount(argAddr.GetValue())
+		wif := node.GetValueChainNode().Accounts.ExportAccount(argAddr.GetValue())
 		if (wif != "") {
 			cliLogger.Info("Account exported (WIF Compress): %v", wif)
 		} else {
 			cliLogger.Error("No such account: %v", argAddr.GetValue())
 		}
-	} else if node.GetSimpleNode().Accounts.CurrentAccount != nil {
-		wif := node.GetSimpleNode().Accounts.CurrentAccount.ToWIFCompressed()
+	} else if node.GetValueChainNode().Accounts.CurrentAccount != nil {
+		wif := node.GetValueChainNode().Accounts.CurrentAccount.ToWIFCompressed()
 		cliLogger.Info("Account exported (WIF Compress): %v", wif)
 	} else {
 		cliLogger.Warn("Need an account been selected or pass the account via -addr")
@@ -165,13 +165,11 @@ func (a *AccountGetBalanceCommand) FollowedBy() []string { return []string{ "acc
 func (a *AccountGetBalanceCommand) Execute(previousCmds []string, args []IArgument) {
 	if argAddr, ok := getArgument(args, "-addr"); ok {
 		addr := argAddr.GetValue()
-		res := block.GetBalance(addr, false)
-		gasRes := block.GetBalance(addr, true)
+		res, gasRes := block.GetBalance(addr)
 		cliLogger.Info("Account %v's balance: %v, gas balance: %v", addr, res, gasRes)
-	} else if node.GetSimpleNode().Accounts.CurrentAccount != nil {
-		addr := node.GetSimpleNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
-		res := block.GetBalance(addr, false)
-		gasRes := block.GetBalance(addr, true)
+	} else if node.GetValueChainNode().Accounts.CurrentAccount != nil {
+		addr := node.GetValueChainNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
+		res, gasRes := block.GetBalance(addr)
 		cliLogger.Info("Account %v's balance: %v, gas balance: %v", addr, res, gasRes)
 	} else {
 		cliLogger.Warn("Need an account been selected or pass the account via -addr")

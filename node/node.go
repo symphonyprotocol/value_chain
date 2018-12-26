@@ -7,9 +7,9 @@ import (
 	"fmt"
 )
 
-var _SimpleNode *SimpleNode
+var _ValueChainNode *ValueChainNode
 
-type SimpleNode struct {
+type ValueChainNode struct {
 	P2PServer	*p2p.P2PServer
 	Accounts	*NodeAccounts
 	Chain		*NodeChain
@@ -17,17 +17,17 @@ type SimpleNode struct {
 	startTime	time.Time
 }
 
-func GetSimpleNode() *SimpleNode {
-	if _SimpleNode == nil {
-		_SimpleNode = InitSimpleNode()
+func GetValueChainNode() *ValueChainNode {
+	if _ValueChainNode == nil {
+		_ValueChainNode = InitValueChainNode()
 	}
 
-	return _SimpleNode
+	return _ValueChainNode
 }
 
-func InitSimpleNode() *SimpleNode {
-	if _SimpleNode == nil {
-		_SimpleNode = &SimpleNode{
+func InitValueChainNode() *ValueChainNode {
+	if _ValueChainNode == nil {
+		_ValueChainNode = &ValueChainNode{
 			P2PServer:	p2p.NewP2PServer(),
 			Accounts: LoadNodeAccounts(),
 			Chain: LoadNodeChain(),
@@ -35,23 +35,23 @@ func InitSimpleNode() *SimpleNode {
 			startTime: time.Now(),
 		}
 	
-		_SimpleNode.P2PServer.Use(NewBlockSyncMiddleware())
-		_SimpleNode.P2PServer.Use(&TransactionMiddleware{ BaseMiddleware: tcp.NewBaseMiddleware() })
-		go _SimpleNode.P2PServer.Start()
+		_ValueChainNode.P2PServer.Use(NewBlockSyncMiddleware())
+		_ValueChainNode.P2PServer.Use(&TransactionMiddleware{ BaseMiddleware: tcp.NewBaseMiddleware() })
+		go _ValueChainNode.P2PServer.Start()
 	}
 
-	return _SimpleNode
+	return _ValueChainNode
 }
 
-func (b *SimpleNode) DashboardData() interface{} { return [][]string{
+func (b *ValueChainNode) DashboardData() interface{} { return [][]string{
 	[]string{ "ID: ", fmt.Sprintf("%v", b.P2PServer.GetP2PContext().LocalNode().GetID()) },
-	[]string{ "Is Mining: ", fmt.Sprintf("%v", GetSimpleNode().Chain.GetMyHeight()) },
+	[]string{ "Is Mining: ", fmt.Sprintf("%v", GetValueChainNode().Chain.GetMyHeight()) },
 	[]string{ "PubKey:", b.P2PServer.GetP2PContext().LocalNode().GetPublicKey()},
 	[]string{ "Local Address:", fmt.Sprintf("%v:%v", b.P2PServer.GetP2PContext().LocalNode().GetLocalIP().String(), b.P2PServer.GetP2PContext().LocalNode().GetLocalPort())},
 	[]string{ "Remote Address:", fmt.Sprintf("%v:%v", b.P2PServer.GetP2PContext().LocalNode().GetRemoteIP().String(), b.P2PServer.GetP2PContext().LocalNode().GetRemotePort())},
 	[]string{ "Up time:", fmt.Sprintf("%v", time.Since(b.startTime))},
 } }
-func (b *SimpleNode) DashboardType() string { return "table" }
-func (b *SimpleNode) DashboardTitle() string { return "Simple Node" }
-func (b *SimpleNode) DashboardTableHasColumnTitles() bool { return false }
+func (b *ValueChainNode) DashboardType() string { return "table" }
+func (b *ValueChainNode) DashboardTitle() string { return "Simple Node" }
+func (b *ValueChainNode) DashboardTableHasColumnTitles() bool { return false }
 

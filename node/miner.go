@@ -3,7 +3,7 @@ package node
 import (
 	"sync"
 	"github.com/symphonyprotocol/scb/block"
-	"github.com/symphonyprotocol/simple-node/node/diagram"
+	"github.com/symphonyprotocol/value_chain/node/diagram"
 	"time"
 	"github.com/symphonyprotocol/log"
 )
@@ -55,10 +55,10 @@ BREAK_LOOP:
 				break BREAK_LOOP
 			default:
 				time.Sleep(time.Millisecond)
-				sNode := GetSimpleNode()
+				sNode := GetValueChainNode()
 				currentAccount := sNode.Accounts.CurrentAccount.ToWIFCompressed()
 				pendingTxs := make([]*block.Transaction, 0, 0)
-				txs := GetSimpleNode().Chain.chain.FindAllUnpackTransaction()
+				txs := GetValueChainNode().Chain.chain.FindAllUnpackTransaction()
 				for _, v := range txs {
 					pendingTxs = append(pendingTxs, v...)
 				}

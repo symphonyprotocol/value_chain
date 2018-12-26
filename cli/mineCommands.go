@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"github.com/symphonyprotocol/simple-node/node"
+	"github.com/symphonyprotocol/value_chain/node"
 )
-
 
 type MineCommand struct {
 }
-func (a *MineCommand) Text() string { return "mine" }
+
+func (a *MineCommand) Text() string        { return "mine" }
 func (a *MineCommand) Description() string { return "Start/stop mining on this node." }
 func (a *MineCommand) Subcommands() []string {
 	return []string{
@@ -16,9 +16,9 @@ func (a *MineCommand) Subcommands() []string {
 }
 
 func (a *MineCommand) SupportedArguments() []string { return []string{} }
-func (a *MineCommand) FollowedBy() []string { return []string{} }
+func (a *MineCommand) FollowedBy() []string         { return []string{} }
 func (a *MineCommand) Execute(previousCmds []string, args []IArgument) {
-	sNode := node.GetSimpleNode()
+	sNode := node.GetValueChainNode()
 	isMining := sNode.Miner.IsMining()
 	cliLogger.Info("Current mining state: %v", isMining)
 	if isMining {
@@ -30,5 +30,3 @@ func (a *MineCommand) Execute(previousCmds []string, args []IArgument) {
 }
 
 var __cmd_inst_mine = &MineCommand{}
-
-

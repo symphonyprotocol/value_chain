@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"github.com/symphonyprotocol/simple-node/node/diagram"
+	"github.com/symphonyprotocol/value_chain/node/diagram"
 	"strconv"
 	"github.com/symphonyprotocol/scb/block"
-	"github.com/symphonyprotocol/simple-node/node"
+	"github.com/symphonyprotocol/value_chain/node"
 )
 
 
@@ -45,7 +45,7 @@ func (a *TransactionSendCommand) Execute(previousCmds []string, args []IArgument
 	if fromArgOK {
 		from = fromArg.GetValue()
 	} else {
-		from = node.GetSimpleNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
+		from = node.GetValueChainNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
 	}
 
 	to = toArg.GetValue()
@@ -58,9 +58,9 @@ func (a *TransactionSendCommand) Execute(previousCmds []string, args []IArgument
 	}
 
 	cliLogger.Info("Really going to send %v to %v from %v", iAmount, to, from)
-	tx := block.SendTo(from, to, iAmount, node.GetSimpleNode().Accounts.ExportAccount(from), to == from)
+	tx := block.SendTo(from, to, iAmount, node.GetValueChainNode().Accounts.ExportAccount(from), to == from)
 	cliLogger.Info("Initialized transaction: %v", tx.IDString())
-	tmpCtx := node.GetSimpleNode().P2PServer.GetP2PContext()
+	tmpCtx := node.GetValueChainNode().P2PServer.GetP2PContext()
 	tmpCtx.BroadcastToNearbyNodes(diagram.NewTransactionSendDiagram(tmpCtx, tx), 20, nil)
 	cliLogger.Info("Broadcasted", tx.IDString())
 }

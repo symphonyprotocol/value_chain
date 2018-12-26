@@ -3,7 +3,7 @@ package node
 import (
 	"github.com/symphonyprotocol/log"
 	"github.com/symphonyprotocol/swa"
-	"github.com/symphonyprotocol/simple-node/storage"
+	"github.com/symphonyprotocol/value_chain/storage"
 	"github.com/symphonyprotocol/sutil/elliptic"
 	"fmt"
 )

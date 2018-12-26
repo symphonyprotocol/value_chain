@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/symphonyprotocol/simple-node/node"
-	"github.com/symphonyprotocol/simple-node/cli"
+	"github.com/symphonyprotocol/value_chain/node"
+	"github.com/symphonyprotocol/value_chain/cli"
 	"github.com/symphonyprotocol/log"
 )
 
@@ -12,7 +12,7 @@ func main() {
 	log.Configure(map[string]([]log.Appender){
 		"default": []log.Appender{ log.NewConsoleAppender() },
 	})
-	node.InitSimpleNode()
+	node.InitValueChainNode()
 	(&cli.CLI{}).Init()
 }
 

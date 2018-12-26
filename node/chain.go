@@ -1,7 +1,6 @@
 package node
 
 import (
-	"bytes"
 	"github.com/symphonyprotocol/log"
 	"github.com/symphonyprotocol/scb/block"
 )
@@ -42,7 +41,7 @@ func (c *NodeChain) GetMyLastBlock() *block.Block {
 func (c *NodeChain) HasBlock(hash []byte) bool {
 	//TODO: implementation
 	if c.chain != nil {
-		return c.chain.HasBlock(hash)
+		return c.chain.HasBlock(hash) != nil
 	}
 	return false
 }
@@ -54,12 +53,7 @@ func (c *NodeChain) HasPendingTransaction(id []byte) bool {
 // boom. should not be this way.
 func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	if c.chain != nil {
-		iterator := c.chain.Iterator()
-		for b := iterator.Next(); b != nil; b = iterator.Next() {
-			if bytes.Compare(b.Header.Hash, hash) == 0 {
-				return b
-			}
-		}
+		return c.chain.GetBlockByHash(hash)
 	}
 
 	return nil
@@ -67,7 +61,7 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 
 func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 	if c.chain != nil { 
-		c.chain.AcceptNewBlock(theBlock)
+		c.chain.AcceptNewBlock(theBlock, theBlock.GetAccountTree(true))
 	}
 }
 

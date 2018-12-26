@@ -10,7 +10,7 @@ import (
 	"github.com/symphonyprotocol/scb/block"
 	"time"
 	"github.com/symphonyprotocol/p2p/tcp"
-	"github.com/symphonyprotocol/simple-node/node/diagram"
+	"github.com/symphonyprotocol/value_chain/node/diagram"
 	"github.com/symphonyprotocol/sutil/ds"
 )
 
@@ -54,13 +54,13 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 		for _, task := range tasks {
 			if b, ok := task.Result.(*block.Block); ok {
 				bsLogger.Trace("Going to save Block: %v: %v", b.Header.HashString(), b.Header)
-				GetSimpleNode().Chain.SaveBlock(b)
+				GetValueChainNode().Chain.SaveBlock(b)
 				bsLogger.Trace("Block saved: %v", b.Header.HashString())
 				// restart mining if mining is true
-				if GetSimpleNode().Miner.IsMining() && !GetSimpleNode().Miner.IsIdle() {
+				if GetValueChainNode().Miner.IsMining() && !GetValueChainNode().Miner.IsIdle() {
 					bsLogger.Info("Cancelled mining !")
-					GetSimpleNode().Miner.StopMining()
-					GetSimpleNode().Miner.StartMining()
+					GetValueChainNode().Miner.StopMining()
+					GetValueChainNode().Miner.StartMining()
 				}
 				t.downloadBlockPendingMap.Delete(b.Header.HashString())
 			}
@@ -82,8 +82,8 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		var syncDiag diagram.BlockSyncDiagram
 		err := ctx.GetDiagram(&syncDiag)
 		if err == nil {
-			myHeight := GetSimpleNode().Chain.GetMyHeight()
-			myLastBlock := GetSimpleNode().Chain.GetMyLastBlock()
+			myHeight := GetValueChainNode().Chain.GetMyHeight()
+			myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
 			targetHeight := syncDiag.LastBlockHeader.Height
 			bsLogger.Debug("Got BLOCK_SYNC diag: %v, myHeight: %v, myLastBlock: %v", syncDiag.LastBlockHeader, myHeight, myLastBlock)
 			if targetHeight > myHeight {
@@ -105,7 +105,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			if targetHeight < myHeight && myLastBlock != nil {
 				bsLogger.Trace("Providing headers")
 				blockHeaders := make([]block.BlockHeader, 0, 0)
-				iterator := GetSimpleNode().Chain.chain.Iterator();
+				iterator := GetValueChainNode().Chain.chain.Iterator();
 				for b := iterator.Next(); b != nil; b = iterator.Next() {
 					if b.Header.Height > targetHeight {
 						blockHeaders = append(blockHeaders, b.Header)
@@ -138,7 +138,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				_, _ok := t.downloadBlockPendingMap.Load(header.HashString())
 				// bsLogger.Info("callback: %v, %v, %v", cb, _ok, t.downloadBlockPendingMap)
 				bsLogger.Info("Looping with header: %v", header.HashString())
-				if GetSimpleNode().Chain.HasBlock(header.Hash) {
+				if GetValueChainNode().Chain.HasBlock(header.Hash) {
 					bsLogger.Warn("Already has this block saved, will not loop it !!!")
 					continue
 				}
@@ -159,7 +159,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		err := ctx.GetDiagram(&bReqDiag)
 		if err == nil {
 			bsLogger.Trace("Going to provide block: %v", bReqDiag.BlockHeader.HashString())
-			myHeight := GetSimpleNode().Chain.GetMyHeight()
+			myHeight := GetValueChainNode().Chain.GetMyHeight()
 			targetHeight := bReqDiag.BlockHeader.Height
 			if myHeight < targetHeight {
 				bsLogger.Warn("BOOM, my: %v, target: %v", myHeight, targetHeight)
@@ -167,7 +167,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				ctx.Send(diagram.NewBlockReqResDiagram(ctx, &block.Block{ Header: block.BlockHeader{ Hash: bReqDiag.BlockHeader.Hash, Height: bReqDiag.BlockHeader.Height, Signature: nil } }))
 			} else {
 				bsLogger.Trace("Providing blocks")
-				ctx.Send(diagram.NewBlockReqResDiagram(ctx, GetSimpleNode().Chain.GetBlock(bReqDiag.BlockHeader.Hash)))
+				ctx.Send(diagram.NewBlockReqResDiagram(ctx, GetValueChainNode().Chain.GetBlock(bReqDiag.BlockHeader.Hash)))
 			}
 		}
 	})
@@ -228,7 +228,7 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 			break exit
 		default:
 			bsLogger.Trace("Going to broadcast sync message")
-			myLastBlock := GetSimpleNode().Chain.GetMyLastBlock()
+			myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
 			if myLastBlock != nil {
 				bsLogger.Trace("Broadcasting sync message")
 				ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header), 20, nil)
@@ -289,7 +289,7 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 }
 
 func (b *BlockSyncMiddleware) DashboardData() interface{} { return [][]string{
-	[]string{ "Current Block Height", fmt.Sprintf("%v", GetSimpleNode().Chain.GetMyHeight()) },
+	[]string{ "Current Block Height", fmt.Sprintf("%v", GetValueChainNode().Chain.GetMyHeight()) },
 	[]string{ "Pending Download Blocks Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadBlockPendingMap)) },
 } }
 func (b *BlockSyncMiddleware) DashboardType() string { return "table" }

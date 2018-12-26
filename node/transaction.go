@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/symphonyprotocol/simple-node/node/diagram"
+	"github.com/symphonyprotocol/value_chain/node/diagram"
 	"github.com/symphonyprotocol/p2p/tcp"
 	p2pNode "github.com/symphonyprotocol/p2p/node"
 	"github.com/symphonyprotocol/log"
@@ -24,7 +24,7 @@ func (t *TransactionMiddleware) regHandlers() {
 		err := ctx.GetDiagram(&diag)
 		if err == nil {
 			// 1. check if I already recieved this transaction
-			if GetSimpleNode().Chain.HasPendingTransaction(diag.Transaction.ID) {
+			if GetValueChainNode().Chain.HasPendingTransaction(diag.Transaction.ID) {
 				tLogger.Warn("I already have this tx: %v pending packaged.", diag.Transaction.IDString())
 			} else {
 				// 1. verify
@@ -38,7 +38,7 @@ func (t *TransactionMiddleware) regHandlers() {
 						return _p.GetID() != fromID
 					})
 					// 3. add to my pending tx
-					GetSimpleNode().Chain.SavePendingTx(&diag.Transaction)
+					GetValueChainNode().Chain.SavePendingTx(&diag.Transaction)
 					// 4. if I'm mining, restart with new pending tx list.
 				} else {
 					tLogger.Error("Got a tx: %v but cannot verify it.", diag.Transaction.IDString())
@@ -59,7 +59,7 @@ func (t *TransactionMiddleware) regHandlers() {
 }
 
 func (b *TransactionMiddleware) DashboardData() interface{} { return [][]string{
-	[]string{ "Current Pending Tx Count", fmt.Sprintf("%v", len(GetSimpleNode().Chain.chain.FindAllUnpackTransaction())) },
+	[]string{ "Current Pending Tx Count", fmt.Sprintf("%v", len(GetValueChainNode().Chain.chain.FindAllUnpackTransaction())) },
 } }
 func (b *TransactionMiddleware) DashboardType() string { return "table" }
 func (b *TransactionMiddleware) DashboardTitle() string { return "Transaction Syncing" }
