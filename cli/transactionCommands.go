@@ -58,7 +58,7 @@ func (a *TransactionSendCommand) Execute(previousCmds []string, args []IArgument
 	}
 
 	cliLogger.Info("Really going to send %v to %v from %v", iAmount, to, from)
-	tx := block.SendTo(from, to, iAmount, node.GetValueChainNode().Accounts.ExportAccount(from), to == from)
+	tx := block.SendTo(from, to, iAmount, node.GetValueChainNode().Accounts.ExportAccount(from))
 	cliLogger.Info("Initialized transaction: %v", tx.IDString())
 	tmpCtx := node.GetValueChainNode().P2PServer.GetP2PContext()
 	tmpCtx.BroadcastToNearbyNodes(diagram.NewTransactionSendDiagram(tmpCtx, tx), 20, nil)

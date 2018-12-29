@@ -14,7 +14,7 @@ import (
 	"github.com/symphonyprotocol/sutil/ds"
 )
 
-var bsLogger = log.GetLogger("blockSyncMiddleware")
+var bsLogger = log.GetLogger("blockSyncMiddleware").SetLevel(log.INFO)
 
 type BlockSyncMiddleware struct {
 	*tcp.BaseMiddleware
@@ -137,7 +137,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				header := syncDiag.BlockHeaders[i]
 				_, _ok := t.downloadBlockPendingMap.Load(header.HashString())
 				// bsLogger.Info("callback: %v, %v, %v", cb, _ok, t.downloadBlockPendingMap)
-				bsLogger.Info("Looping with header: %v", header.HashString())
+				bsLogger.Debug("Looping with header: %v", header.HashString())
 				if GetValueChainNode().Chain.HasBlock(header.Hash) {
 					bsLogger.Warn("Already has this block saved, will not loop it !!!")
 					continue

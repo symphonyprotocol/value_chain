@@ -3,6 +3,7 @@ package node
 import (
 	"github.com/symphonyprotocol/log"
 	"github.com/symphonyprotocol/scb/block"
+	"bytes"
 )
 
 var chainLogger = log.GetLogger("chain")
@@ -61,7 +62,12 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 
 func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 	if c.chain != nil { 
-		c.chain.AcceptNewBlock(theBlock, theBlock.GetAccountTree(true))
+		accountTree := theBlock.GetAccountTree(true)
+		chainLogger.Info("Account tree equal to I got from net? : %v\n caclulated: %v\n got: %v", 
+			bytes.Compare(accountTree.MerkleRoot(), theBlock.Header.MerkleRootAccountHash),
+			accountTree.MerkleRoot(),
+			theBlock.Header.MerkleRootAccountHash)
+		c.chain.AcceptNewBlock(theBlock, accountTree)
 	}
 }
 

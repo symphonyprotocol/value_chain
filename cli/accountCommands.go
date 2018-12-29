@@ -11,7 +11,7 @@ func (a *AccountCommand) Text() string { return "account" }
 func (a *AccountCommand) Description() string { return "Account related commands" }
 func (a *AccountCommand) Subcommands() []string {
 	return []string{
-		"new", "list", "use", "export", "getbalance",
+		"new", "list", "use", "export", "getbalance", "import",
 		"_newmnemonic", "_getkey", "_derivekey",
 	}
 }
@@ -31,7 +31,7 @@ func (a *AccountNewMCommand) Execute(previousCmds []string, args []IArgument) {
 	m, err := swa.GenMnemonic()
 	if err == nil {
 		cliLogger.Debug("Mnemonic created: %v", m)
-	} else {p
+	} else {
 		cliLogger.Error("%v", err)
 	}
 }
@@ -97,6 +97,24 @@ func (a *AccountNewCommand) Execute(previousCmds []string, args []IArgument) {
 	sn := node.GetValueChainNode()
 	addr := sn.Accounts.NewSingleAccount("")
 	cliLogger.Info("New account created: %v", addr)
+}
+
+type AccountImportCommand struct {}
+func (a *AccountImportCommand) Text() string { return "import" }
+func (a *AccountImportCommand) Description() string { return "import an account by its wif string" }
+func (a *AccountImportCommand) Subcommands() []string { return []string{} }
+func (a *AccountImportCommand) SupportedArguments() []string { return []string{ "-wif" } }
+func (a *AccountImportCommand) FollowedBy() []string { return []string{ "account" } }
+func (a *AccountImportCommand) Execute(previousCmds []string, args []IArgument) {
+	if argM, ok := getArgument(args, "-wif"); ok {
+		sn := node.GetValueChainNode()
+		addr, err := sn.Accounts.ImportAccount(argM.GetValue())
+		if err != nil {
+			cliLogger.Error("Failed to import account by wif string: %v", argM.GetValue())
+		} else {
+			cliLogger.Info("New account imported: %v", addr)
+		}
+	}
 }
 
 type AccountListCommand struct {}
@@ -165,12 +183,12 @@ func (a *AccountGetBalanceCommand) FollowedBy() []string { return []string{ "acc
 func (a *AccountGetBalanceCommand) Execute(previousCmds []string, args []IArgument) {
 	if argAddr, ok := getArgument(args, "-addr"); ok {
 		addr := argAddr.GetValue()
-		res, gasRes := block.GetBalance(addr)
-		cliLogger.Info("Account %v's balance: %v, gas balance: %v", addr, res, gasRes)
+		res := block.GetBalance(addr)
+		cliLogger.Info("Account %v's balance: %v", addr, res)
 	} else if node.GetValueChainNode().Accounts.CurrentAccount != nil {
 		addr := node.GetValueChainNode().Accounts.CurrentAccount.ECPubKey().ToAddressCompressed()
-		res, gasRes := block.GetBalance(addr)
-		cliLogger.Info("Account %v's balance: %v, gas balance: %v", addr, res, gasRes)
+		res := block.GetBalance(addr)
+		cliLogger.Info("Account %v's balance: %v", addr, res)
 	} else {
 		cliLogger.Warn("Need an account been selected or pass the account via -addr")
 	}
@@ -196,6 +214,10 @@ type AccountUseArgumentPubkey struct { *BaseArgument }
 func (a *AccountUseArgumentPubkey) Text() string { return "-addr" }
 func (a *AccountUseArgumentPubkey) Description() string { return "The account address." }
 
+type AccountImportArgumentWif struct { *BaseArgument }
+func (a *AccountImportArgumentWif) Text() string { return "-wif" }
+func (a *AccountImportArgumentWif) Description() string { return "The wif string of your account." }
+
 
 var __cmd_inst_account = &AccountCommand{}
 var __cmd_inst_account_newm = &AccountNewMCommand{}
@@ -205,6 +227,7 @@ var __cmd_inst_account_derive = &AccountDeriveCommand{}
 var __cmd_inst_account_new = &AccountNewCommand{}
 var __cmd_inst_account_list = &AccountListCommand{}
 var __cmd_inst_account_use = &AccountUseCommand{}
+var __cmd_inst_account_import = &AccountImportCommand{}
 var __cmd_inst_account_export = &AccountExportCommand{}
 var __cmd_inst_account_getbalance = &AccountGetBalanceCommand{}
 
@@ -213,5 +236,6 @@ var __arg_inst_account_getkey_p = &AccountGetKeyArgumentPassword{&BaseArgument{}
 var __arg_inst_account_derive_pwd = &AccountDeriveArgumentPassword{&BaseArgument{}}
 var __arg_inst_account_derive_path = &AccountDeriveArgumentPath{&BaseArgument{}}
 var __arg_inst_account_use_addr = &AccountUseArgumentPubkey{&BaseArgument{}}
+var __arg_inst_account_import_wif = &AccountImportArgumentWif{&BaseArgument{}}
 
 

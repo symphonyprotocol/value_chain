@@ -10,6 +10,11 @@ import (
 
 var walletLogger = log.GetLogger("wallet")
 
+type NodeAccount struct {
+	*elliptic.PrivateKey
+	IsImported	bool
+}
+
 type NodeAccounts struct {
 	Accounts []*elliptic.PrivateKey
 	CurrentAccount	*elliptic.PrivateKey
@@ -62,8 +67,16 @@ func (a *NodeAccounts) NewSingleAccount(pwd string) string {
 	return ""
 }
 
-func (a *NodeAccounts) ImportAccount() {
-
+func (a *NodeAccounts) ImportAccount(wif string) (string, error) {
+	prikey, err := elliptic.LoadWIF(wif)
+	if err == nil {
+		privateKey, _ := elliptic.PrivKeyFromBytes(elliptic.S256(), prikey)
+		a.Accounts = append(a.Accounts, privateKey)
+		a.storeAccount(privateKey)
+		return privateKey.ECPubKey().ToAddressCompressed(), nil
+	} else {
+		return "", err
+	}
 }
 
 func (a *NodeAccounts) ExportAccount(pubKey string) string {

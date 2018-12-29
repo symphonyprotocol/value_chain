@@ -13,6 +13,7 @@ var commands = []ICommand {
 	__cmd_inst_account_new,
 	__cmd_inst_account_list,
 	__cmd_inst_account_use,
+	__cmd_inst_account_import,
 	__cmd_inst_account_export,
 	__cmd_inst_account_getbalance,
 
@@ -38,6 +39,7 @@ var arguments = []IArgument {
 	__arg_inst_tx_amount,
 	__arg_inst_tx_from,
 	__arg_inst_tx_to,
+	__arg_inst_account_import_wif,
 }
 
 func Completer(d prompt.Document) []prompt.Suggest {
