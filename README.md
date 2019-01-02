@@ -51,5 +51,5 @@ commands:
 ```
 
 ### Example:
-![Account Command](https://github.com/symphonyprotocol/value_chain/tree/dev/docs/account.png "Account Command")
+![Account Command](https://github.com/symphonyprotocol/value_chain/blob/dev/docs/account.png "Account Command")
 
