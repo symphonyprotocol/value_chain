@@ -45,7 +45,10 @@ commands:
             -from           (optional) default: current account, the wallet addr where the transaction will be sent from
             -to             the receiver
             -amount         how much SYM will be transferred. 
+
     blockchain
+        new             init a new blockchain
+        list            list the content of blockchain
 
     mine                switch on/off the mining
 ```
