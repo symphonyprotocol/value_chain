@@ -18,7 +18,7 @@ func (a *AccountCommand) Subcommands() []string {
 func (a *AccountCommand) SupportedArguments() []string { return []string{} }
 func (a *AccountCommand) FollowedBy() []string { return []string{} }
 func (a *AccountCommand) Execute(previousCmds []string, args []IArgument) {
-	cliLogger.Warn("account need to be followed by commands: newmnemonic, getkey or derivekey.")
+	cliLogger.Warn("account need to be followed by one of these commands: [new, use, import, export, list, getbalance].")
 }
 
 type AccountNewMCommand struct {}
