@@ -60,6 +60,21 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	return nil
 }
 
+func (c *NodeChain) GetBlockByHeight(height int64) *block.Block {
+	// TODO: use index in db to get
+	if c.chain != nil {
+		for b := c.chain.Iterator().Next(); b != nil; {
+			if b.Header.Height == height {
+				return b
+			} else if b.Header.Height < height {
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 	if c.chain != nil { 
 		accountTree := theBlock.GetAccountTree(true)
