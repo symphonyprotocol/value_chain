@@ -63,7 +63,10 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 func (c *NodeChain) GetBlockByHeight(height int64) *block.Block {
 	// TODO: use index in db to get
 	if c.chain != nil {
-		for b := c.chain.Iterator().Next(); b != nil; {
+		it := c.chain.Iterator()
+		b := it.Next()
+		for ; b != nil; b = it.Next() {
+			chainLogger.Trace("Looping block height: %v", b.Header.Height)
 			if b.Header.Height == height {
 				return b
 			} else if b.Header.Height < height {

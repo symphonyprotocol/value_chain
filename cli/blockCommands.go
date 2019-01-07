@@ -54,6 +54,11 @@ func (a *BlockChainListCommand) Subcommands() []string        { return []string{
 func (a *BlockChainListCommand) SupportedArguments() []string { return []string{} }
 func (a *BlockChainListCommand) FollowedBy() []string         { return []string{"blockchain"} }
 func (a *BlockChainListCommand) Execute(previousCmds []string, args []IArgument) {
+	defer func() {
+		if err := recover(); err != nil {
+			cliLogger.Error("Got error when printing the chain")
+		}
+	}()
 	block.PrintChain()
 }
 
