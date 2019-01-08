@@ -66,7 +66,7 @@ func (c *NodeChain) GetBlockByHeight(height int64) *block.Block {
 		it := c.chain.Iterator()
 		b := it.Next()
 		for ; b != nil; b = it.Next() {
-			chainLogger.Trace("Looping block height: %v", b.Header.Height)
+			// chainLogger.Trace("Looping block height: %v", b.Header.Height)
 			if b.Header.Height == height {
 				return b
 			} else if b.Header.Height < height {

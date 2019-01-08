@@ -18,10 +18,10 @@ import (
 var bsLogger = log.GetLogger("blockSyncMiddleware").SetLevel(log.TRACE)
 
 var (
-	MAX_HEADER_PENDING	=	512
-	MAX_BLOCK_PENDING	=	256
-	BLOCK_REQUEST_TIMEOUT		=	3 * time.Minute
-	HEADER_REQUEST_TIMEOUT		=	30 * time.Second
+	MAX_HEADER_PENDING	=	64
+	MAX_BLOCK_PENDING	=	64
+	BLOCK_REQUEST_TIMEOUT		=	1 * time.Minute
+	HEADER_REQUEST_TIMEOUT		=	1 * time.Minute
 )
 
 type BlockSyncMiddleware struct {
@@ -33,18 +33,18 @@ type BlockSyncMiddleware struct {
 	downloadBlockHeaderQueue		*ds.SequentialParallelTaskQueue
 	downloadBlockPendingMap			sync.Map
 	downloadBlockPendingTimeoutMap	sync.Map
-	donwloadHeaderPendingMap		sync.Map
+	downloadHeaderPendingMap		sync.Map
 	downloadHeaderPendingTimeoutMap	sync.Map
 	knownMaxHeight					int64
-	myLastHash						[]byte
+	myLastHeader					*block.BlockHeader
 }
 
 func NewBlockSyncMiddleware() *BlockSyncMiddleware {
 	return &BlockSyncMiddleware{
 		BaseMiddleware: tcp.NewBaseMiddleware(),
 		syncLoopExitSignal: make(chan struct{}),
-		downloadBlockChannel: make(chan *block.BlockHeader, 100),
-		downloadBlockHeaderChannel: make(chan int64, 100),
+		downloadBlockChannel: make(chan *block.BlockHeader, 20),
+		downloadBlockHeaderChannel: make(chan int64, 20),
 	}
 }
 
@@ -53,20 +53,37 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 		// we got headers, need to download blocks.
 		bsLogger.Debug("We got finished headers, going to download content of them.")
 		myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
-		if myLastBlock != nil && t.myLastHash == nil {
-			t.myLastHash = myLastBlock.Header.Hash
+		if myLastBlock != nil && t.myLastHeader == nil {
+			t.myLastHeader = &myLastBlock.Header
 		}
 		for _, task := range tasks {
 			if b, ok := task.Result.(*block.BlockHeader); ok {
 				// check if these headers can be connected
-				bsLogger.Trace("Comparing my last header: %v with recieved header's previous hash: %v", utils.BytesToString(t.myLastHash), utils.BytesToString(b.PrevBlockHash))
-				if bytes.Compare(t.myLastHash, b.PrevBlockHash) == 0 {
+				if t.myLastHeader != nil {
+					bsLogger.Trace("Comparing my last header (%v): %v with recieved header's(%v) previous hash: %v",
+					t.myLastHeader.Height, 
+						utils.BytesToString(t.myLastHeader.Hash), 
+						b.Height,
+						utils.BytesToString(b.PrevBlockHash))
+				}
+				if t.myLastHeader == nil || bytes.Compare(t.myLastHeader.Hash, b.PrevBlockHash) == 0 {
 					bsLogger.Trace("Going to ask for Block: %v: %v", b.HashString(), b)
 					t.downloadBlockChannel <- b
-					t.myLastHash = b.Hash
-					bsLogger.Trace("My Last hash set to: %v", utils.BytesToString(t.myLastHash))
+					t.myLastHeader = b
+					bsLogger.Trace("My Last hash set to: %v with height: %v", utils.BytesToString(t.myLastHeader.Hash), t.myLastHeader.Height)
+					t.downloadHeaderPendingMap.Delete(b.Height)
 				} else {
 					bsLogger.Error("BOOOOOM ! got a header that has the same height but cannot be connected to the chain")
+					// clean up the queue and resync
+					t.downloadBlockHeaderQueue.Clear()
+					ds.ClearSyncMap(&t.downloadHeaderPendingMap)
+					ds.ClearSyncMap(&t.downloadHeaderPendingTimeoutMap)
+					bsLogger.Error("Cleared.")
+					myLastBlock = GetValueChainNode().Chain.GetMyLastBlock()
+					if myLastBlock != nil {
+						t.myLastHeader = &myLastBlock.Header
+					}
+					bsLogger.Error("Cleared.")
 				}
 			}
 		}
@@ -92,7 +109,6 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 					GetValueChainNode().Miner.StartMining()
 				}
 				t.downloadBlockPendingMap.Delete(b.Header.HashString())
-				t.donwloadHeaderPendingMap.Delete(b.Header.Height)
 			}
 		}
 	})
@@ -128,7 +144,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				expectedHeight := utils.Min(myHeight + int64(MAX_HEADER_PENDING), targetHeight)
 				bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v", myHeight, targetHeight, expectedHeight)
 				for i := myHeight + 1; i <= expectedHeight; i++ {
-					if _, ok := t.donwloadHeaderPendingMap.Load(i); !ok {
+					if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
 						t.downloadBlockHeaderChannel <- i
 					}
 				}
@@ -199,10 +215,10 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		err := ctx.GetDiagram(&syncDiag)
 		if err == nil {
 			bsLogger.Trace("Recieved headers")
-			if _cb, _ok := t.donwloadHeaderPendingMap.Load(syncDiag.BlockHeight); _ok {
+			if _cb, _ok := t.downloadHeaderPendingMap.Load(syncDiag.BlockHeight); _ok {
 				bsLogger.Debug("Header Task is in pending map")
 				if cb, ok := _cb.(func(res interface{})); ok {
-					bsLogger.Debug("Recieved Header and going to ask for block when headers are in a line!")
+					bsLogger.Debug("Recieved Header %v and going to ask for block when headers are in a line!", syncDiag.BlockHeader.Height)
 					cb(syncDiag.BlockHeader)
 					// remove timeout map
 					t.downloadHeaderPendingTimeoutMap.Delete(syncDiag.BlockHeight)
@@ -267,6 +283,8 @@ func (t *BlockSyncMiddleware) regHandlers() {
 	t.HandleRequest(diagram.BLOCK_SEND, func (ctx *tcp.P2PContext) {
 		// 1. check if I have this block or asking for this block
 		//   if not, ask for this block's content with BLOCK_REQ
+		// fetch in eth.
+
 	})
 }
 
@@ -318,7 +336,7 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 						if height, ok := k.(int64); ok {
 							// ask from another guy, it's randomized, maybe it's another guy.
 							if randPeer != nil {
-								bsLogger.Trace("Header Asking from %v !!!!! with height: %v", randPeer.GetRemoteIP(), height)
+								bsLogger.Trace("TIMEOUT !!! ---> Header Asking from %v !!!!! with height: %v", randPeer.GetRemoteIP(), height)
 								ctx.SendToPeer(diagram.NewBlockHeaderDiagram(ctx, height), randPeer)
 								t.downloadHeaderPendingTimeoutMap.Store(height, time.Now())
 							}
@@ -363,7 +381,7 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 					bsLogger.Trace("Going to ask for header!: %v", height)
 					t.downloadHeaderPendingTimeoutMap.Store(height, time.Now())
 					bsLogger.Debug("Storing to downloadBlockHeaderPendingMap with key: %v", height)
-					t.donwloadHeaderPendingMap.Store(height, cb)
+					t.downloadHeaderPendingMap.Store(height, cb)
 					if randPeer != nil {
 						bsLogger.Trace("Asking for header!: %v", height)
 						ctx.SendToPeer(diagram.NewBlockHeaderDiagram(ctx, height), randPeer)
@@ -379,6 +397,7 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 
 func (b *BlockSyncMiddleware) DashboardData() interface{} { return [][]string{
 	[]string{ "Current Block Height", fmt.Sprintf("%v", GetValueChainNode().Chain.GetMyHeight()) },
+	[]string{ "Pending Download Headers Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadHeaderPendingMap)) },
 	[]string{ "Pending Download Blocks Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadBlockPendingMap)) },
 } }
 func (b *BlockSyncMiddleware) DashboardType() string { return "table" }
