@@ -20,8 +20,8 @@ var bsLogger = log.GetLogger("blockSyncMiddleware").SetLevel(log.TRACE)
 var (
 	MAX_HEADER_PENDING	=	128
 	MAX_BLOCK_PENDING	=	128
-	BLOCK_REQUEST_TIMEOUT		=	1 * time.Minute
-	HEADER_REQUEST_TIMEOUT		=	1 * time.Minute
+	BLOCK_REQUEST_TIMEOUT		=	30 * time.Second
+	HEADER_REQUEST_TIMEOUT		=	30 * time.Second
 )
 
 type BlockSyncMiddleware struct {
@@ -52,7 +52,7 @@ func NewBlockSyncMiddleware() *BlockSyncMiddleware {
 
 func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 	t.BaseMiddleware.Start(ctx)
-	t.downloadBlockHeaderQueue = ds.NewSequentialParallelTaskQueue(100, func (tasks []*ds.ParallelTask) {
+	t.downloadBlockHeaderQueue = ds.NewSequentialParallelTaskQueue(MAX_HEADER_PENDING, func (tasks []*ds.ParallelTask) {
 		// we got headers, need to download blocks.
 		bsLogger.Info("We got finished headers, going to download content of them.")
 		myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
@@ -96,7 +96,7 @@ func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
 			t.Retry()
 		}
 	})
-	t.downloadBlockQueue = ds.NewSequentialParallelTaskQueue(100, func (tasks []*ds.ParallelTask) {
+	t.downloadBlockQueue = ds.NewSequentialParallelTaskQueue(MAX_BLOCK_PENDING, func (tasks []*ds.ParallelTask) {
 		// we got blocks, need to save them.
 		// defer func() {
 		// 	if err := recover(); err != nil {
@@ -421,6 +421,7 @@ func (b *BlockSyncMiddleware) DashboardData() interface{} { return [][]string{
 	[]string{ "Pending Download Headers Task Count", fmt.Sprintf("%v", b.downloadBlockHeaderQueue.GetRunningTasksCount()) },
 	// []string{ "Pending Download Headers Timeout Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadHeaderPendingTimeoutMap)) },
 	[]string{ "Pending Download Blocks Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadBlockPendingMap)) },
+	[]string{ "Pending Download Blocks Task Count", fmt.Sprintf("%v", b.downloadBlockQueue.GetRunningTasksCount()) },
 } }
 func (b *BlockSyncMiddleware) DashboardType() string { return "table" }
 func (b *BlockSyncMiddleware) DashboardTitle() string { return "Block Syncing" }
