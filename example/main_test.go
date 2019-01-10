@@ -30,7 +30,7 @@ func TestMain(t *testing.T) {
 		// make transfers
 //LOOP:
 		for {
-			time.Sleep(10 * time.Second)
+			time.Sleep(2 * time.Second)
 			if vNode.P2PServer.GetP2PContext() != nil && vNode.P2PServer.GetP2PContext().LocalNode() != nil {
 				from := vNode.Accounts.Accounts[0].ECPubKey().ToAddressCompressed()
 				to := vNode.Accounts.Accounts[1].ECPubKey().ToAddressCompressed()

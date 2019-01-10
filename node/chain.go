@@ -81,11 +81,14 @@ func (c *NodeChain) GetBlockByHeight(height int64) *block.Block {
 func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 	if c.chain != nil { 
 		accountTree := theBlock.GetAccountTree(true)
+		checkRes := bytes.Compare(accountTree.MerkleRoot(), theBlock.Header.MerkleRootAccountHash)
 		chainLogger.Info("Account tree equal to I got from net? : %v\n caclulated: %v\n got: %v", 
-			bytes.Compare(accountTree.MerkleRoot(), theBlock.Header.MerkleRootAccountHash),
+			checkRes,
 			accountTree.MerkleRoot(),
 			theBlock.Header.MerkleRootAccountHash)
-		c.chain.AcceptNewBlock(theBlock, accountTree)
+		if checkRes == 0 || len(block.GetAllAccount()) == 0 {
+			c.chain.AcceptNewBlock(theBlock, accountTree)
+		}
 	}
 }
 
