@@ -30,7 +30,7 @@ func TestMain(t *testing.T) {
 		for {
 			time.Sleep(50 * time.Millisecond)
 			if vNode.P2PServer.GetP2PContext() != nil && vNode.P2PServer.GetP2PContext().LocalNode() != nil {
-				for i := 0; i < 2000; i++ {
+				for i := 0; i < 100; i++ {
 					from := vNode.Accounts.Accounts[0].ECPubKey().ToAddressCompressed()
 					to := vNode.Accounts.Accounts[1].ECPubKey().ToAddressCompressed()
 					block.SendTo(from, to, 1, vNode.Accounts.ExportAccount(from))

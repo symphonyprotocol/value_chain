@@ -137,7 +137,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			myHeight := GetValueChainNode().Chain.GetMyHeight()
 			myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
 			targetHeight := syncDiag.LastBlockHeader.Height
-			bsLogger.Debug("Got BLOCK_SYNC diag: %v, myHeight: %v, myLastBlock: %v", syncDiag.LastBlockHeader, myHeight, myLastBlock)
+			bsLogger.Debug("Got BLOCK_SYNC diag: %v, myHeight: %v", syncDiag.LastBlockHeader.Height, myHeight)
 			if targetHeight > myHeight {
 				GetValueChainNode().IsSyncing = true
 				// ask for headers
@@ -248,7 +248,10 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				ctx.Send(diagram.NewBlockReqResDiagram(ctx, &block.Block{ Header: block.BlockHeader{ Hash: bReqDiag.BlockHeader.Hash, Height: bReqDiag.BlockHeader.Height, Signature: nil } }))
 			} else {
 				bsLogger.Trace("Providing blocks")
-				ctx.Send(diagram.NewBlockReqResDiagram(ctx, GetValueChainNode().Chain.GetBlock(bReqDiag.BlockHeader.Hash)))
+				the_block := GetValueChainNode().Chain.GetBlock(bReqDiag.BlockHeader.Hash)
+				resDiag := diagram.NewBlockReqResDiagram(ctx, the_block)
+				bsLogger.Debug("block:%v, txs inside: %v", the_block.Header.Height, len(the_block.Transactions))
+				ctx.Send(resDiag)
 			}
 		}
 	})
@@ -278,6 +281,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 					bsLogger.Debug("Task is in pending map")
 					if cb, ok := _cb.(func(res interface{})); ok {
 						bsLogger.Debug("Recieved Block and going to store !")
+						bsLogger.Debug("The block: %v, txs inside: %v", bReqResDiag.Block.Header.Height, len(bReqResDiag.Block.Transactions))
 						cb(bReqResDiag.Block)
 						// remove timeout map
 						// t.downloadBlockPendingTimeoutMap.Delete(bReqResDiag.Block.Header.HashString())
