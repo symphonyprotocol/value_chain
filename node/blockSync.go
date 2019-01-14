@@ -37,6 +37,10 @@ type BlockSyncMiddleware struct {
 	knownMaxHeight					int64
 	myLastHeader					*block.BlockHeader
 	lastRequestedHeight				int64
+	selectedPeer					*node.RemoteNode
+	previousPeer					*node.RemoteNode
+	peersHeights					sync.Map
+	askForHeaderChan				chan int64
 }
 
 func NewBlockSyncMiddleware() *BlockSyncMiddleware {
@@ -46,6 +50,7 @@ func NewBlockSyncMiddleware() *BlockSyncMiddleware {
 		acceptBlockChannel: make(chan *block.Block),
 		downloadBlockChannel: make(chan *block.BlockHeader, 512),
 		downloadBlockHeaderChannel: make(chan int64, 512),
+		askForHeaderChan: make(chan int64),
 		lastRequestedHeight: -1,
 	}
 }
@@ -147,14 +152,17 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				// 		ctx.SendToPeer()
 				// 	},
 				// })
-				expectedHeight := utils.Min(myHeight + int64(MAX_HEADER_PENDING), targetHeight)
-				bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v", myHeight, targetHeight, expectedHeight)
-				for i := utils.Max(myHeight, t.lastRequestedHeight) + 1; i <= expectedHeight; i++ {
-					if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
-						t.downloadBlockHeaderChannel <- i
-						t.lastRequestedHeight = i
-					}
-				}
+				// expectedHeight := utils.Min(myHeight + int64(MAX_HEADER_PENDING), targetHeight)
+				// bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v", myHeight, targetHeight, expectedHeight)
+				// for i := utils.Max(myHeight, t.lastRequestedHeight) + 1; i <= expectedHeight; i++ {
+				// 	if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
+				// 		t.downloadBlockHeaderChannel <- i
+				// 		t.lastRequestedHeight = i
+				// 	}
+				// }
+				//if _, ok := t.peersHeights.Load(ctx.Params().GetTCPRemoteAddr().IP.String()); !ok {
+				t.peersHeights.Store(ctx.Params().GetTCPRemoteAddr().IP.String(), targetHeight)
+				//}
 			}
 
 			if targetHeight < myHeight && myLastBlock != nil {
@@ -175,6 +183,10 @@ func (t *BlockSyncMiddleware) regHandlers() {
 				
 				// ctx.Send(diagram.NewBlockHeaderResDiagram(ctx, targetHeight, myHeight, blockHeaders))
 				// bsLogger.Trace("Provided headers count: %v", len(blockHeaders))
+			}
+
+			if targetHeight >= myHeight && myLastBlock != nil {
+				GetValueChainNode().IsSyncing = false
 			}
 
 			if targetHeight < myHeight && myLastBlock == nil {
@@ -292,10 +304,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 	})
 
 	t.HandleRequest(diagram.BLOCK_SEND, func (ctx *tcp.P2PContext) {
-		// 1. check if I have this block or asking for this block
-		//   if not, ask for this block's content with BLOCK_REQ
-		// fetch in eth.
-
+		// add to pending pool.
 	})
 }
 
@@ -316,11 +325,33 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 		default:
 			bsLogger.Trace("Going to broadcast sync message")
 			myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
+			var myHeight int64 = -1
 			if myLastBlock != nil {
+				myHeight = myLastBlock.Header.Height
 				bsLogger.Trace("Broadcasting sync message")
 				ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header), 20, nil)
 			} else {
 				ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &block.BlockHeader{ Height: -1 }), 20, nil)
+			}
+
+			bestPeer := t.GetBestPeer(ctx)
+			if bestPeer != nil {
+				if t.selectedPeer == nil || t.selectedPeer.GetID() != bestPeer.GetID() {
+					t.previousPeer = t.selectedPeer
+					t.selectedPeer = bestPeer
+				}
+				if _h, ok := t.peersHeights.Load(bestPeer.GetRemoteIP().String()); ok {
+					if h, ok := _h.(int64); ok {				
+						expectedHeight := utils.Min(myHeight + int64(MAX_HEADER_PENDING), h)
+						bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v", myHeight, h, expectedHeight)
+						for i := utils.Max(myHeight, t.lastRequestedHeight) + 1; i <= expectedHeight; i++ {
+							if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
+								t.downloadBlockHeaderChannel <- i
+								t.lastRequestedHeight = i
+							}
+						}
+					}
+				}
 			}
 
 			// t.downloadBlockPendingTimeoutMap.Range(func(k, v interface{}) bool {
@@ -363,12 +394,6 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 // check timeout map periodly
 func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 	for {
-		peers := ctx.NodeProvider().GetNearbyNodes(20)
-		peersLength := len(peers)
-		var randPeer *node.RemoteNode
-		if peersLength > 0 {
-			randPeer = peers[rand.Intn(peersLength)]
-		}
 
 		select {
 		case header := <- t.downloadBlockChannel:
@@ -379,10 +404,15 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 					// t.downloadBlockPendingTimeoutMap.Store(header.HashString(), time.Now())
 					bsLogger.Debug("Storing to downloadBlockPendingMap with key: %v", header.HashString())
 					t.downloadBlockPendingMap.Store(header.HashString(), cb)
-					if randPeer != nil {
-						bsLogger.Trace("Asking for block!: %v", header.HashString())
-						ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, header), randPeer)
+					if params != nil && len(params) > 0 {
+						if peer, ok := params[0].(*node.RemoteNode); ok {
+							bsLogger.Trace("Asking for block!: %v", header.HashString())
+							ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, header), peer)
+						}
 					}
+				},
+				Params: []interface{}{
+					t.selectedPeer,
 				},
 				Timeout: BLOCK_REQUEST_TIMEOUT,
 			})
@@ -394,10 +424,15 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 					// t.downloadHeaderPendingTimeoutMap.Store(height, time.Now())
 					bsLogger.Debug("Storing to downloadBlockHeaderPendingMap with key: %v", height)
 					t.downloadHeaderPendingMap.Store(height, cb)
-					if randPeer != nil {
-						bsLogger.Trace("Asking for header!: %v", height)
-						ctx.SendToPeer(diagram.NewBlockHeaderDiagram(ctx, height), randPeer)
+					if params != nil && len(params) > 0 {
+						if peer, ok := params[0].(*node.RemoteNode); ok {
+							bsLogger.Trace("Asking for header!: %v", height)
+							ctx.SendToPeer(diagram.NewBlockHeaderDiagram(ctx, height), peer)
+						}
 					}
+				},
+				Params: []interface{}{
+					t.selectedPeer,
 				},
 				Timeout: HEADER_REQUEST_TIMEOUT,
 			})
@@ -412,21 +447,44 @@ func (t *BlockSyncMiddleware) mapCheckingLoop(ctx *tcp.P2PContext) {
 				GetValueChainNode().Miner.StartMining()
 			}
 			t.downloadBlockPendingMap.Delete(b.Header.HashString())
-		default:
-			time.Sleep(time.Millisecond)
-			continue
+		// default:
+		// 	time.Sleep(time.Millisecond)
+		// 	continue
 		}
 	}
 }
 
-func (b *BlockSyncMiddleware) DashboardData() interface{} { return [][]string{
+func (t *BlockSyncMiddleware) GetBestPeer(ctx *tcp.P2PContext) *node.RemoteNode {
+	var ret *node.RemoteNode = nil
+	peers := ctx.NodeProvider().GetNearbyNodes(20)
+	var maxHeight int64 = -1
+	for _, p := range peers {
+		if _h, ok := t.peersHeights.Load(p.GetRemoteIP().String()); ok {
+			if h, ok := _h.(int64); ok {
+				if maxHeight <= h {
+					maxHeight = h
+					ret = p
+				}
+			}
+		}
+	}
+
+	return ret
+}
+
+
+func (t *BlockSyncMiddleware) DropConnection(conn *tcp.TCPConnection) {
+	t.BaseMiddleware.DropConnection(conn)
+}
+
+func (t *BlockSyncMiddleware) DashboardData() interface{} { return [][]string{
 	[]string{ "Current Block Height", fmt.Sprintf("%v", GetValueChainNode().Chain.GetMyHeight()) },
-	[]string{ "Pending Download Headers Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadHeaderPendingMap)) },
-	[]string{ "Pending Download Headers Task Count", fmt.Sprintf("%v", b.downloadBlockHeaderQueue.GetRunningTasksCount()) },
+	[]string{ "Pending Download Headers Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&t.downloadHeaderPendingMap)) },
+	[]string{ "Pending Download Headers Task Count", fmt.Sprintf("%v", t.downloadBlockHeaderQueue.GetRunningTasksCount()) },
 	// []string{ "Pending Download Headers Timeout Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadHeaderPendingTimeoutMap)) },
-	[]string{ "Pending Download Blocks Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&b.downloadBlockPendingMap)) },
-	[]string{ "Pending Download Blocks Task Count", fmt.Sprintf("%v", b.downloadBlockQueue.GetRunningTasksCount()) },
+	[]string{ "Pending Download Blocks Count", fmt.Sprintf("%v", ds.GetSyncMapSize(&t.downloadBlockPendingMap)) },
+	[]string{ "Pending Download Blocks Task Count", fmt.Sprintf("%v", t.downloadBlockQueue.GetRunningTasksCount()) },
 } }
-func (b *BlockSyncMiddleware) DashboardType() string { return "table" }
-func (b *BlockSyncMiddleware) DashboardTitle() string { return "Block Syncing" }
-func (b *BlockSyncMiddleware) DashboardTableHasColumnTitles() bool { return false }
+func (t *BlockSyncMiddleware) DashboardType() string { return "table" }
+func (t *BlockSyncMiddleware) DashboardTitle() string { return "Block Syncing" }
+func (t *BlockSyncMiddleware) DashboardTableHasColumnTitles() bool { return false }
