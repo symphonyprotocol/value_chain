@@ -23,7 +23,7 @@ var (
 	MAX_BLOCK_PENDING	=	128
 	BLOCK_REQUEST_TIMEOUT		=	30 * time.Second
 	HEADER_REQUEST_TIMEOUT		=	30 * time.Second
-	NEED_NEGOTIATION_THRESHOLD	=	15
+	NEED_NEGOTIATION_THRESHOLD	=	10
 
 	SYNC_STATE_IDLE		=	0
 	SYNC_STATE_SYNCING	=	1
@@ -46,7 +46,7 @@ type BlockSyncMiddleware struct {
 	lastRequestedHeight				int64
 	selectedPeer					*node.RemoteNode
 	previousPeer					*node.RemoteNode
-	peersHeights					sync.Map
+	peersHeights					sync.Map				// TODO: should use ip+port as key not only ip
 	askForHeaderChan				chan int64
 	negotiateCounter				int
 	currentState					int
@@ -131,7 +131,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		
 		var syncDiag diagram.BlockSyncDiagram
 		err := ctx.GetDiagram(&syncDiag)
-		if err == nil {
+		if err == nil && t.GetSyncState() != SYNC_STATE_NEGOTIATION {
 			myHeight := GetValueChainNode().Chain.GetMyHeight()
 			myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
 			targetHeight := syncDiag.LastBlockHeader.Height
@@ -139,47 +139,18 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			if targetHeight > myHeight {
 				GetValueChainNode().IsSyncing = true
 				t.SetSyncState(SYNC_STATE_SYNCING)
-				// ask for headers
-				// devide the load to peers
-				// t.downloadBlockHeaderQueue.AddTask(&ds.ParallelTask{
-				// 	Body: func(params []interface{}, cb func(res interface{})) {
-				// 		ctx.SendToPeer()
-				// 	},
-				// })
-				// expectedHeight := utils.Min(myHeight + int64(MAX_HEADER_PENDING), targetHeight)
-				// bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v", myHeight, targetHeight, expectedHeight)
-				// for i := utils.Max(myHeight, t.lastRequestedHeight) + 1; i <= expectedHeight; i++ {
-				// 	if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
-				// 		t.downloadBlockHeaderChannel <- i
-				// 		t.lastRequestedHeight = i
-				// 	}
-				// }
-				//if _, ok := t.peersHeights.Load(ctx.Params().GetTCPRemoteAddr().IP.String()); !ok {
 				t.peersHeights.Store(ctx.Params().GetTCPRemoteAddr().IP.String(), targetHeight)
-				//}
 			}
 
 			if targetHeight < myHeight && myLastBlock != nil {
 				// Just answer the BLOCK_SYNC message
 				ctx.Send(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header))
-				// bsLogger.Trace("Providing headers")
-				// blockHeaders := make([]block.BlockHeader, 0, 0)
-				// iterator := GetValueChainNode().Chain.chain.Iterator();
-				// for b := iterator.Next(); b != nil; b = iterator.Next() {
-				// 	if b.Header.Height > targetHeight {
-				// 		blockHeaders = append(blockHeaders, b.Header)
-				// 	}
-				// }
-
-				// sort.Slice(blockHeaders[:], func(i, j int) bool {
-				// 	return blockHeaders[i].Height < blockHeaders[j].Height
-				// })
-				
-				// ctx.Send(diagram.NewBlockHeaderResDiagram(ctx, targetHeight, myHeight, blockHeaders))
-				// bsLogger.Trace("Provided headers count: %v", len(blockHeaders))
 			}
 
-			if targetHeight >= myHeight && myLastBlock != nil {
+			if targetHeight <= myHeight && 
+			myLastBlock != nil && 
+			t.selectedPeer != nil && 
+			ctx.Params().GetTCPRemoteAddr().IP.String() == t.selectedPeer.GetRemoteIP().String() {
 				GetValueChainNode().IsSyncing = false
 				t.SetSyncState(SYNC_STATE_IDLE)
 			}
@@ -196,21 +167,6 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		err := ctx.GetDiagram(&headerDiag)
 		if err == nil { 
 			bsLogger.Trace("Going to provide header: %v", headerDiag.BlockHeight)
-
-			// blockHeaders := make([]*block.BlockHeader, 0, 0)
-			// iterator := GetValueChainNode().Chain.chain.Iterator();
-			// for b := iterator.Next(); b != nil; b = iterator.Next() {
-			// 	if b.Header.Height >= headerDiag.HeightFrom && b.Header.Height <= headerDiag.HeightTo {
-			// 		blockHeaders = append(blockHeaders, b.Header)
-			// 	}
-			// 	if b.Header.Height < headerDiag.HeightFrom {
-			// 		break
-			// 	}
-			// }
-
-			// sort.Slice(blockHeaders[:], func(i, j int) bool {
-			// 	return blockHeaders[i].Height < blockHeaders[j].Height
-			// })
 
 			b := GetValueChainNode().Chain.GetBlockByHeight(headerDiag.BlockHeight)
 			
@@ -314,12 +270,6 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 	exit:
 	for {
 		time.Sleep(10 * time.Second)
-		// peers := ctx.NodeProvider().GetNearbyNodes(20)
-		// peersLength := len(peers)
-		// var randPeer *node.RemoteNode
-		// if peersLength > 0 {
-		// 	randPeer = peers[rand.Intn(peersLength)]
-		// }
 		select {
 		case <- t.syncLoopExitSignal:
 			bsLogger.Trace("Syncing stopped")
@@ -345,9 +295,15 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 				if _h, ok := t.peersHeights.Load(bestPeer.GetRemoteIP().String()); ok {
 					if h, ok := _h.(int64); ok {				
 						expectedHeight := utils.Min(myHeight + int64(MAX_HEADER_PENDING), h)
-						bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v", myHeight, h, expectedHeight)
+						bsLogger.Trace("Asking for headers, myHeight: %v, target Height: %v, expectedHeght: %v, pendingCount: %v, lastRequestedHeight: %v", 
+						myHeight, 
+						h, 
+						expectedHeight, 
+						ds.GetSyncMapSize(&t.downloadHeaderPendingMap),
+						t.lastRequestedHeight)
 						for i := utils.Max(myHeight, t.lastRequestedHeight) + 1; i <= expectedHeight; i++ {
 							if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
+								bsLogger.Trace("aaaaaaaaa")
 								t.downloadBlockHeaderChannel <- i
 								t.lastRequestedHeight = i
 							}
@@ -355,44 +311,6 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 					}
 				}
 			}
-
-			if t.negotiateCounter > 0 {
-				t.negotiateCounter--
-			}
-
-			// t.downloadBlockPendingTimeoutMap.Range(func(k, v interface{}) bool {
-			// 	if ti, ok := v.(time.Time); ok {
-			// 		if time.Since(ti) >= BLOCK_REQUEST_TIMEOUT {
-			// 			// boom
-			// 			if header, ok := k.(block.BlockHeader); ok {
-			// 				// ask from another guy, it's randomized, maybe it's another guy.
-			// 				if randPeer != nil {
-			// 					bsLogger.Trace("Block Asking from %v !!!!!", randPeer.GetRemoteIP())
-			// 					ctx.SendToPeer(diagram.NewBlockReqDiagram(ctx, &header), randPeer)
-			// 					t.downloadBlockPendingTimeoutMap.Store(header.HashString(), time.Now())
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// 	return true
-			// })
-
-			// t.downloadHeaderPendingTimeoutMap.Range(func(k, v interface{}) bool {
-			// 	if ti, ok := v.(time.Time); ok {
-			// 		if time.Since(ti) >= HEADER_REQUEST_TIMEOUT {
-			// 			// boom
-			// 			if height, ok := k.(int64); ok {
-			// 				// ask from another guy, it's randomized, maybe it's another guy.
-			// 				if randPeer != nil {
-			// 					bsLogger.Trace("TIMEOUT !!! ---> Header Asking from %v !!!!! with height: %v", randPeer.GetRemoteIP(), height)
-			// 					ctx.SendToPeer(diagram.NewBlockHeaderDiagram(ctx, height), randPeer)
-			// 					t.downloadHeaderPendingTimeoutMap.Store(height, time.Now())
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// 	return true
-			// })
 		}
 	}
 }
@@ -442,11 +360,6 @@ func (t *BlockSyncMiddleware) downloadLoop(ctx *tcp.P2PContext) {
 				},
 				Timeout: HEADER_REQUEST_TIMEOUT,
 			})
-
-		// default:
-		// 	time.Sleep(time.Millisecond)
-		// 	continue
-
 		}
 	}
 }
@@ -489,8 +402,8 @@ func (t *BlockSyncMiddleware) acceptHeaderLoop(ctx *tcp.P2PContext) {
 				bsLogger.Trace("My Last hash set to: %v with height: %v", utils.BytesToString(t.myLastHeader.Hash), t.myLastHeader.Height)
 				t.downloadHeaderPendingMap.Delete(b.Height)
 			} else {
-				bsLogger.Error("BOOOOOM ! got a header that has the same height but cannot be connected to the chain")
 				t.negotiateCounter++
+				bsLogger.Error("BOOOOOM ! got a header that has the same height but cannot be connected to the chain, negotitateCounter: %v", t.negotiateCounter)
 				if t.negotiateCounter > NEED_NEGOTIATION_THRESHOLD {
 					// TODO: negotiate with the best peer and ready to revert.
 					bsLogger.Fatal("Fatal ! got BIFURCATION")
@@ -499,10 +412,13 @@ func (t *BlockSyncMiddleware) acceptHeaderLoop(ctx *tcp.P2PContext) {
 					// clean up the queue and resync
 					t.downloadBlockHeaderQueue.Clear()
 					ds.ClearSyncMap(&t.downloadHeaderPendingMap)
-					bsLogger.Error("Cleared.")
+					bsLogger.Error("Cleared. :%v left", ds.GetSyncMapSize(&t.downloadHeaderPendingMap))
 					myLastBlock := GetValueChainNode().Chain.GetMyLastBlock()
 					if myLastBlock != nil {
 						t.myLastHeader = &myLastBlock.Header
+						t.lastRequestedHeight = t.myLastHeader.Height
+					} else {
+						t.lastRequestedHeight = -1
 					}
 					bsLogger.Error("Cleared.")
 				}
@@ -541,6 +457,7 @@ func (t *BlockSyncMiddleware) GetBestPeer(ctx *tcp.P2PContext) *node.RemoteNode 
 // 3. revert the chain to the bifurcation
 // 4. start syncing
 func (t *BlockSyncMiddleware) Negotiate(ctx *tcp.P2PContext) {
+	t.SetSyncState(SYNC_STATE_NEGOTIATION)
 	// 1 stop
 	bsLogger.Trace("Negotiate - stopping the sync")
 	t.syncLoopExitSignal <- struct{}{}
@@ -580,9 +497,10 @@ func (t *BlockSyncMiddleware) Negotiate(ctx *tcp.P2PContext) {
 	}
 
 	// 3 revert
-	bsLogger.Trace("Negotiate - reverting my chain")
+	bsLogger.Trace("Negotiate - found bifurcation at height: %v, reverting my chain", height)
 	block.RevertTo(height)
 
+	t.SetSyncState(SYNC_STATE_IDLE)
 	// 4 sync
 	bsLogger.Trace("Negotiate - start sync again")
 	go t.syncLoop(ctx)
@@ -609,11 +527,15 @@ func (t *BlockSyncMiddleware) DashboardTableHasColumnTitles() bool { return fals
 func (t *BlockSyncMiddleware) GetSyncState() int {
 	t.mtx.RLock()
 	defer t.mtx.RUnlock()
+	bsLogger.Trace("Retrived state: %v", t.currentState)
 	return t.currentState
 }
 
 func (t *BlockSyncMiddleware) SetSyncState(state int) {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
-	t.currentState = state
+	if t.currentState != state {
+		bsLogger.Trace("State changed to %v", state)
+		t.currentState = state
+	}
 }
