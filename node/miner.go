@@ -58,24 +58,19 @@ BREAK_LOOP:
 				sNode := GetValueChainNode()
 				currentAccount := sNode.Accounts.CurrentAccount.ToWIFCompressed()
 				pendingTxs := make([]*block.Transaction, 0, 0)
-				txs := GetValueChainNode().Chain.chain.FindAllUnpackTransaction()
+				txs := block.FindAllUnpackTransaction()
 				for _, v := range txs {
 					pendingTxs = append(pendingTxs, v...)
 				}
 
 				n.mtx.Lock()
 				if len(pendingTxs) > 0 && n.runningPow == nil {
-					n.runningPow = block.Mine(currentAccount, func(txs []*block.Transaction) {
+					n.runningPow = block.Mine(currentAccount, func(b *block.Block) {
 						// broadcast
-						myLastBlock := sNode.Chain.GetMyLastBlock()
+						// myLastBlock := sNode.Chain.GetMyLastBlock()
 						ctx := sNode.P2PServer.GetP2PContext()
-						if myLastBlock != nil {
-							
-							bsLogger.Trace("Broadcasting sync message")
-							ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &myLastBlock.Header), 20, nil)
-						} else {
-							ctx.BroadcastToNearbyNodes(diagram.NewBlockSyncDiagram(ctx, &block.BlockHeader{ Height: -1 }), 20, nil)
-						}
+						bsLogger.Trace("Broadcasting new block message")
+						ctx.BroadcastToNearbyNodes(diagram.NewBlockSendDiagram(ctx, b), 20, nil)
 						// need lock here
 						n.mtx.Lock()
 						n.runningPow = nil

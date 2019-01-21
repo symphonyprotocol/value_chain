@@ -10,12 +10,15 @@ var chainLogger = log.GetLogger("chain")
 
 type NodeChain struct {
 	chain	*block.Blockchain
+	pool	*block.BlockchainPendingPool
 }
 
 func LoadNodeChain() (result *NodeChain) {
 	theChain := block.CreateEmptyBlockchain()
+	thePool := block.LoadPendingPool()
 	return &NodeChain{
 		chain: theChain,
+		pool: thePool,
 	}
 }
 
@@ -51,7 +54,6 @@ func (c *NodeChain) HasPendingTransaction(id []byte) bool {
 	return c.chain.FindUnpackTransactionById(id) != nil
 }
 
-// boom. should not be this way.
 func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 	if c.chain != nil {
 		return c.chain.GetBlockByHash(hash)
@@ -61,18 +63,7 @@ func (c *NodeChain) GetBlock(hash []byte) *block.Block {
 }
 
 func (c *NodeChain) GetBlockByHeight(height int64) *block.Block {
-	// TODO: use index in db to get
 	if c.chain != nil {
-		// it := c.chain.Iterator()
-		// b := it.Next()
-		// for ; b != nil; b = it.Next() {
-		// 	// chainLogger.Trace("Looping block height: %v", b.Header.Height)
-		// 	if b.Header.Height == height {
-		// 		return b
-		// 	} else if b.Header.Height < height {
-		// 		break
-		// 	}
-		// }
 		return c.chain.GetBlockByHeight(height)
 	}
 
@@ -96,6 +87,12 @@ func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 func (c *NodeChain) SavePendingTx(theTx *block.Transaction) {
 	if c.chain != nil {
 		c.chain.SaveTransaction(theTx)
+	}
+}
+
+func (c *NodeChain) SavePendingBlock(b *block.Block) {
+	if c.pool != nil {
+		c.pool.AcceptBlock(b)
 	}
 }
 

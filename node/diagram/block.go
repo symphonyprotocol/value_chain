@@ -101,15 +101,15 @@ func NewBlockReqResDiagram(ctx *tcp.P2PContext, _block *block.Block) *BlockReqRe
 
 type BlockSendDiagram struct {
 	*models.TCPDiagram
-	BlockHeader *block.BlockHeader
+	Block *block.Block
 }
 
-func NewBlockSendDiagram(ctx *tcp.P2PContext, _blockHeader *block.BlockHeader) *BlockSendDiagram {
+func NewBlockSendDiagram(ctx *tcp.P2PContext, _block *block.Block) *BlockSendDiagram {
 	tDiag := ctx.NewTCPDiagram()
 	tDiag.DType = BLOCK_SEND
 	return &BlockSendDiagram{
 		TCPDiagram: tDiag,
-		BlockHeader: _blockHeader,
+		Block: _block,
 	}
 }
 

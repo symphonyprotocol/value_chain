@@ -52,6 +52,7 @@ type BlockSyncMiddleware struct {
 	currentState					int
 	mtx								sync.RWMutex
 	negotiationHeaderChan			chan *block.BlockHeader
+	peerBlackList					[]*node.RemoteNode
 }
 
 func NewBlockSyncMiddleware() *BlockSyncMiddleware {
@@ -66,6 +67,7 @@ func NewBlockSyncMiddleware() *BlockSyncMiddleware {
 		lastRequestedHeight: -1,
 		negotiateCounter: 0,
 		negotiationHeaderChan: make(chan *block.BlockHeader),
+		peerBlackList: make([]*node.RemoteNode, 0, 0),
 	}
 }
 
@@ -262,6 +264,11 @@ func (t *BlockSyncMiddleware) regHandlers() {
 
 	t.HandleRequest(diagram.BLOCK_SEND, func (ctx *tcp.P2PContext) {
 		// add to pending pool.
+		var bSendDiag diagram.BlockSendDiagram
+		err := ctx.GetDiagram(&bSendDiag)
+		if err == nil {
+			GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
+		}
 	})
 }
 
@@ -303,7 +310,6 @@ func (t *BlockSyncMiddleware) syncLoop(ctx *tcp.P2PContext) {
 						t.lastRequestedHeight)
 						for i := utils.Max(myHeight, t.lastRequestedHeight) + 1; i <= expectedHeight; i++ {
 							if _, ok := t.downloadHeaderPendingMap.Load(i); !ok {
-								bsLogger.Trace("aaaaaaaaa")
 								t.downloadBlockHeaderChannel <- i
 								t.lastRequestedHeight = i
 							}
