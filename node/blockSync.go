@@ -266,8 +266,20 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		// add to pending pool.
 		var bSendDiag diagram.BlockSendDiagram
 		err := ctx.GetDiagram(&bSendDiag)
-		if err == nil {
+		if err == nil && t.GetSyncState() == SYNC_STATE_IDLE {
+			if GetValueChainNode().Miner.IsMining() {
+				bsLogger.Debug("Cancelled mining")
+				GetValueChainNode().Miner.StopMining()
+			}
 			GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
+			GetValueChainNode().Miner.StartMining()
+		}
+
+		if err == nil {
+			go ctx.BroadcastToNearbyNodes(bSendDiag, 20, func(_p *node.RemoteNode) bool {
+				// will not broadcast back to where the msg is from.
+				return _p.GetID() != bSendDiag.GetNodeID()
+			})
 		}
 	})
 }

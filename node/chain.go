@@ -10,22 +10,24 @@ var chainLogger = log.GetLogger("chain")
 
 type NodeChain struct {
 	chain	*block.Blockchain
-	pool	*block.BlockchainPendingPool
+	// pool	*block.BlockchainPendingPool
 }
 
 func LoadNodeChain() (result *NodeChain) {
 	theChain := block.CreateEmptyBlockchain()
-	thePool := block.LoadPendingPool()
+	// thePool := block.LoadPendingPool()
 	return &NodeChain{
 		chain: theChain,
-		pool: thePool,
+		// pool: thePool,
 	}
 }
 
 func (c *NodeChain) GetMyHeight() int64 {
 	if c.chain != nil {
+		chainLogger.Trace("Chain is not nil")
 		lastBlock := c.GetMyLastBlock()
 		if lastBlock != nil {
+			chainLogger.Trace("LastBlock is not nil: %v", lastBlock.Header.Height)
 			return lastBlock.Header.Height
 		}
 	}
@@ -80,6 +82,8 @@ func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 			theBlock.Header.MerkleRootAccountHash)
 		if checkRes == 0 || len(block.GetAllAccount()) == 0 {
 			c.chain.AcceptNewBlock(theBlock, accountTree)
+			chainLogger.Info("Clearing Pending pool") 
+			block.ClearPendingPool()
 		}
 	}
 }
@@ -91,8 +95,15 @@ func (c *NodeChain) SavePendingTx(theTx *block.Transaction) {
 }
 
 func (c *NodeChain) SavePendingBlock(b *block.Block) {
-	if c.pool != nil {
-		c.pool.AcceptBlock(b)
+	pool := block.LoadPendingPool()
+	if pool != nil {
+		
+		pendingblockChain := pool.AcceptBlock(b)
+		if pendingblockChain != nil{
+			bc := block.LoadBlockchain()
+			bc.AcceptNewPendingChain(pendingblockChain)
+		}
+		b.DeleteTransactions()
 	}
 }
 

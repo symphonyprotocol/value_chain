@@ -70,10 +70,12 @@ BREAK_LOOP:
 						// myLastBlock := sNode.Chain.GetMyLastBlock()
 						ctx := sNode.P2PServer.GetP2PContext()
 						bsLogger.Trace("Broadcasting new block message")
-						ctx.BroadcastToNearbyNodes(diagram.NewBlockSendDiagram(ctx, b), 20, nil)
+						go ctx.BroadcastToNearbyNodes(diagram.NewBlockSendDiagram(ctx, b), 20, nil)
+						bsLogger.Trace("Broadcasting new block message done.")
 						// need lock here
 						n.mtx.Lock()
 						n.runningPow = nil
+						bsLogger.Trace("Running pow set to nil")
 						n.mtx.Unlock()
 					})
 				}
