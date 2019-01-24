@@ -270,9 +270,11 @@ func (t *BlockSyncMiddleware) regHandlers() {
 			if GetValueChainNode().Miner.IsMining() {
 				bsLogger.Debug("Cancelled mining")
 				GetValueChainNode().Miner.StopMining()
+				GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
+				GetValueChainNode().Miner.StartMining()
+			} else {
+				GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
 			}
-			GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
-			GetValueChainNode().Miner.StartMining()
 		}
 
 		if err == nil {

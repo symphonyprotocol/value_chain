@@ -11,15 +11,20 @@ var chainLogger = log.GetLogger("chain")
 type NodeChain struct {
 	chain	*block.Blockchain
 	// pool	*block.BlockchainPendingPool
+	pendingblockChan	chan *block.Block
 }
 
+// be called only once.
 func LoadNodeChain() (result *NodeChain) {
 	theChain := block.CreateEmptyBlockchain()
 	// thePool := block.LoadPendingPool()
-	return &NodeChain{
+	c := &NodeChain{
 		chain: theChain,
+		pendingblockChan: make(chan *block.Block),
 		// pool: thePool,
 	}
+	go c.loop()
+	return c
 }
 
 func (c *NodeChain) GetMyHeight() int64 {
@@ -95,15 +100,24 @@ func (c *NodeChain) SavePendingTx(theTx *block.Transaction) {
 }
 
 func (c *NodeChain) SavePendingBlock(b *block.Block) {
-	pool := block.LoadPendingPool()
-	if pool != nil {
-		
-		pendingblockChain := pool.AcceptBlock(b)
-		if pendingblockChain != nil{
-			bc := block.LoadBlockchain()
-			bc.AcceptNewPendingChain(pendingblockChain)
+	c.pendingblockChan <- b
+}
+
+func (c *NodeChain) loop() {
+	for {
+		select {
+		case b := <- c.pendingblockChan:
+			pool := block.LoadPendingPool()
+			if pool != nil {
+				
+				pendingblockChain := pool.AcceptBlock(b)
+				if pendingblockChain != nil{
+					bc := block.LoadBlockchain()
+					bc.AcceptNewPendingChain(pendingblockChain)
+				}
+				b.DeleteTransactions()
+			}
 		}
-		b.DeleteTransactions()
 	}
 }
 
