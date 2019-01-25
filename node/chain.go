@@ -13,7 +13,6 @@ type NodeChain struct {
 	chain	*block.Blockchain
 	// pool	*block.BlockchainPendingPool
 	pendingBlockChan	chan *block.Block
-	pendingTxChan		chan *block.Transaction
 }
 
 // be called only once.
@@ -23,7 +22,6 @@ func LoadNodeChain() (result *NodeChain) {
 	c := &NodeChain{
 		chain: theChain,
 		pendingBlockChan: make(chan *block.Block),
-		pendingTxChan: make(chan *block.Transaction),
 		// pool: thePool,
 	}
 	go c.loop()
@@ -97,7 +95,7 @@ func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 }
 
 func (c *NodeChain) SavePendingTx(theTx *block.Transaction) {
-	c.pendingTxChan <- theTx
+	c.chain.SaveTransaction(theTx)
 }
 
 func (c *NodeChain) SavePendingBlock(b *block.Block) {
@@ -116,10 +114,6 @@ func (c *NodeChain) loop() {
 				GetValueChainNode().Miner.StartMining()
 			} else {
 				c.savePendingBlock(b)
-			}
-		case tx := <- c.pendingTxChan:
-			if c.chain != nil {
-				c.chain.SaveTransaction(tx)
 			}
 		}
 	}

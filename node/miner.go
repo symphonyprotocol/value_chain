@@ -67,7 +67,7 @@ func (n *NodeMiner) mineLoop() {
 				pendingTxs = append(pendingTxs, v...)
 			}
 
-			if len(pendingTxs) > 0 && n.IsRunningPowEmpty() {
+			if len(pendingTxs) > 0 && n.IsRunningPowEmpty() && sNode.P2PServer != nil && sNode.P2PServer.GetP2PContext() != nil && sNode.P2PServer.GetP2PContext().LocalNode() != nil {
 				doneSignal := make(chan struct{})
 				n.runningPow = block.Mine(currentAccount, func(b *block.Block) {
 					bsLogger.Trace("Mined !!!!!!!!!")

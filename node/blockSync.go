@@ -25,9 +25,10 @@ var (
 	HEADER_REQUEST_TIMEOUT		=	30 * time.Second
 	NEED_NEGOTIATION_THRESHOLD	=	10
 
-	SYNC_STATE_IDLE		=	0
-	SYNC_STATE_SYNCING	=	1
-	SYNC_STATE_NEGOTIATION	=	2
+	SYNC_STATE_INIT		=	0
+	SYNC_STATE_IDLE		=	1
+	SYNC_STATE_SYNCING	=	2
+	SYNC_STATE_NEGOTIATION	=	4
 )
 
 type BlockSyncMiddleware struct {
@@ -72,7 +73,7 @@ func NewBlockSyncMiddleware() *BlockSyncMiddleware {
 }
 
 func (t *BlockSyncMiddleware) Start(ctx *tcp.P2PContext) {
-	t.SetSyncState(SYNC_STATE_IDLE)
+	t.SetSyncState(SYNC_STATE_INIT)
 	t.BaseMiddleware.Start(ctx)
 	t.downloadBlockHeaderQueue = ds.NewSequentialParallelTaskQueue(MAX_HEADER_PENDING, func (tasks []*ds.ParallelTask) {
 		// we got headers, need to download blocks.
