@@ -267,15 +267,7 @@ func (t *BlockSyncMiddleware) regHandlers() {
 		var bSendDiag diagram.BlockSendDiagram
 		err := ctx.GetDiagram(&bSendDiag)
 		if err == nil && t.GetSyncState() == SYNC_STATE_IDLE {
-			fmt.Printf("====== received block with hash: %v \n    and prevHash: %v", bSendDiag.Block.Header.HashString(), utils.BytesToString(bSendDiag.Block.Header.PrevBlockHash))
-			if GetValueChainNode().Miner.IsMining() {
-				bsLogger.Debug("Cancelled mining")
-				GetValueChainNode().Miner.StopMining()
-				GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
-				GetValueChainNode().Miner.StartMining()
-			} else {
-				GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
-			}
+			GetValueChainNode().Chain.SavePendingBlock(bSendDiag.Block)
 		}
 
 		if err == nil {

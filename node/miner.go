@@ -59,7 +59,6 @@ func (n *NodeMiner) mineLoop() {
 		case <- n.stopSign:
 			n.ClearRunningPow()
 		case <- n.mineSign:
-			// bsLogger.Trace("Going to mine - 2")
 			sNode := GetValueChainNode()
 			currentAccount := sNode.Accounts.CurrentAccount.ToWIFCompressed()
 			pendingTxs := make([]*block.Transaction, 0, 0)
@@ -69,7 +68,9 @@ func (n *NodeMiner) mineLoop() {
 			}
 
 			if len(pendingTxs) > 0 && n.IsRunningPowEmpty() {
+				doneSignal := make(chan struct{})
 				n.runningPow = block.Mine(currentAccount, func(b *block.Block) {
+					bsLogger.Trace("Mined !!!!!!!!!")
 					// broadcast
 					// myLastBlock := sNode.Chain.GetMyLastBlock()
 					ctx := sNode.P2PServer.GetP2PContext()
@@ -79,7 +80,15 @@ func (n *NodeMiner) mineLoop() {
 					// need lock here
 					n.ClearRunningPow()
 					bsLogger.Trace("Running pow cleared")
+				}, func() {
+					doneSignal <- struct{}{}
 				})
+				select {
+				case <- n.runningPow.Cancelled:
+					bsLogger.Debug("Running pow cancelled")
+				case <- doneSignal:
+					bsLogger.Debug("Running pow done")
+				}
 			}
 		}
 	}

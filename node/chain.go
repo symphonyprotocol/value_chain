@@ -3,6 +3,7 @@ package node
 import (
 	"github.com/symphonyprotocol/log"
 	"github.com/symphonyprotocol/scb/block"
+	"github.com/symphonyprotocol/sutil/utils"
 	"bytes"
 )
 
@@ -11,7 +12,8 @@ var chainLogger = log.GetLogger("chain")
 type NodeChain struct {
 	chain	*block.Blockchain
 	// pool	*block.BlockchainPendingPool
-	pendingblockChan	chan *block.Block
+	pendingBlockChan	chan *block.Block
+	pendingTxChan		chan *block.Transaction
 }
 
 // be called only once.
@@ -20,7 +22,8 @@ func LoadNodeChain() (result *NodeChain) {
 	// thePool := block.LoadPendingPool()
 	c := &NodeChain{
 		chain: theChain,
-		pendingblockChan: make(chan *block.Block),
+		pendingBlockChan: make(chan *block.Block),
+		pendingTxChan: make(chan *block.Transaction),
 		// pool: thePool,
 	}
 	go c.loop()
@@ -94,30 +97,44 @@ func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 }
 
 func (c *NodeChain) SavePendingTx(theTx *block.Transaction) {
-	if c.chain != nil {
-		c.chain.SaveTransaction(theTx)
-	}
+	c.pendingTxChan <- theTx
 }
 
 func (c *NodeChain) SavePendingBlock(b *block.Block) {
-	c.pendingblockChan <- b
+	c.pendingBlockChan <- b
 }
 
 func (c *NodeChain) loop() {
 	for {
 		select {
-		case b := <- c.pendingblockChan:
-			pool := block.LoadPendingPool()
-			if pool != nil {
-				
-				pendingblockChain := pool.AcceptBlock(b)
-				if pendingblockChain != nil{
-					bc := block.LoadBlockchain()
-					bc.AcceptNewPendingChain(pendingblockChain)
-				}
-				b.DeleteTransactions()
+		case b := <- c.pendingBlockChan:
+			chainLogger.Trace("====== received block with hash: %v \n    and prevHash: %v", b.Header.HashString(), utils.BytesToString(b.Header.PrevBlockHash))
+			if GetValueChainNode().Miner.IsMining() {
+				bsLogger.Debug("Cancelled mining")
+				GetValueChainNode().Miner.StopMining()
+				c.savePendingBlock(b)
+				GetValueChainNode().Miner.StartMining()
+			} else {
+				c.savePendingBlock(b)
+			}
+		case tx := <- c.pendingTxChan:
+			if c.chain != nil {
+				c.chain.SaveTransaction(tx)
 			}
 		}
+	}
+}
+
+func (c *NodeChain) savePendingBlock(b *block.Block) {
+	pool := block.LoadPendingPool()
+	if pool != nil {
+		
+		pendingblockChain := pool.AcceptBlock(b)
+		if pendingblockChain != nil{
+			bc := block.LoadBlockchain()
+			bc.AcceptNewPendingChain(pendingblockChain)
+		}
+		b.DeleteTransactions()
 	}
 }
 
