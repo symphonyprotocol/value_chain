@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// init simple node
-	log.SetGlobalLevel(log.TRACE)
+	log.SetGlobalLevel(log.DEBUG)
 	log.Configure(map[string]([]log.Appender){
 		"default": []log.Appender{ log.NewConsoleAppender() },
 	})
