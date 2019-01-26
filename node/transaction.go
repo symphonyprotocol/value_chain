@@ -6,6 +6,7 @@ import (
 	p2pNode "github.com/symphonyprotocol/p2p/node"
 	"github.com/symphonyprotocol/log"
 	"fmt"
+	"github.com/symphonyprotocol/scb/block"
 )
 
 var tLogger = log.GetLogger("TxSyncMiddleware")
@@ -59,7 +60,7 @@ func (t *TransactionMiddleware) regHandlers() {
 }
 
 func (b *TransactionMiddleware) DashboardData() interface{} { return [][]string{
-	[]string{ "Current Pending Tx Count", fmt.Sprintf("%v", len(GetValueChainNode().Chain.chain.FindAllUnpackTransaction())) },
+	[]string{ "Current Pending Tx Count", fmt.Sprintf("%v", len(block.FindAllUnpackTransaction())) },
 } }
 func (b *TransactionMiddleware) DashboardType() string { return "table" }
 func (b *TransactionMiddleware) DashboardTitle() string { return "Transaction Syncing" }

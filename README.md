@@ -56,3 +56,8 @@ commands:
 ### Example:
 ![Account Command](https://github.com/symphonyprotocol/value_chain/blob/dev/docs/account.png "Account Command")
 
+## Change logs
+### alpha-0.0.0.2:
+* used pending pool to resolve the bifurcation
+* optimized syncing and mining process
+* log utils now works more reliably on windows

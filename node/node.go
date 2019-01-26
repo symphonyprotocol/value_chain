@@ -15,6 +15,7 @@ type ValueChainNode struct {
 	Chain		*NodeChain
 	Miner		*NodeMiner
 	startTime	time.Time
+	IsSyncing	bool 
 }
 
 func GetValueChainNode() *ValueChainNode {
@@ -45,11 +46,12 @@ func InitValueChainNode() *ValueChainNode {
 
 func (b *ValueChainNode) DashboardData() interface{} { return [][]string{
 	[]string{ "ID: ", fmt.Sprintf("%v", b.P2PServer.GetP2PContext().LocalNode().GetID()) },
-	[]string{ "Is Mining: ", fmt.Sprintf("%v", GetValueChainNode().Chain.GetMyHeight()) },
+	[]string{ "Is Mining: ", fmt.Sprintf("%v", GetValueChainNode().Miner.IsMining()) },
 	[]string{ "PubKey:", b.P2PServer.GetP2PContext().LocalNode().GetPublicKey()},
 	[]string{ "Local Address:", fmt.Sprintf("%v:%v", b.P2PServer.GetP2PContext().LocalNode().GetLocalIP().String(), b.P2PServer.GetP2PContext().LocalNode().GetLocalPort())},
 	[]string{ "Remote Address:", fmt.Sprintf("%v:%v", b.P2PServer.GetP2PContext().LocalNode().GetRemoteIP().String(), b.P2PServer.GetP2PContext().LocalNode().GetRemotePort())},
 	[]string{ "Up time:", fmt.Sprintf("%v", time.Since(b.startTime))},
+	[]string{ "Is Syncing:", fmt.Sprintf("%v", b.IsSyncing)},
 } }
 func (b *ValueChainNode) DashboardType() string { return "table" }
 func (b *ValueChainNode) DashboardTitle() string { return "Simple Node" }
