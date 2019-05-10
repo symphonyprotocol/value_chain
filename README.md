@@ -1,7 +1,18 @@
 # value_chain
-Symphonyprotocol Value Chain
+Symphonyprotocol Value Chain(Alpha Release)
 
 Combined several modules to a simple node.
+
+Log Module:
+https://github.com/symphonyprotocol/log
+Block Module:
+https://github.com/symphonyprotocol/scb
+Utils Module:
+https://github.com/symphonyprotocol/sutil
+P2P Module:
+https://github.com/symphonyprotocol/p2p
+Wallet and Account Module
+https://github.com/symphonyprotocol/swa
 
 ## Supported Platforms:
     Linux/MacOS shell
