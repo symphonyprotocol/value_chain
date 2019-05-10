@@ -82,7 +82,7 @@ func (c *NodeChain) SaveBlock(theBlock *block.Block) {
 	if c.chain != nil { 
 		accountTree := theBlock.GetAccountTree(true)
 		checkRes := bytes.Compare(accountTree.MerkleRoot(), theBlock.Header.MerkleRootAccountHash)
-		chainLogger.Info("Account tree equal to I got from net? : %v\n caclulated: %v\n got: %v", 
+		chainLogger.Info("Local account tree equals to main net? : %v\n caclulated: %v\n got: %v", 
 			checkRes,
 			accountTree.MerkleRoot(),
 			theBlock.Header.MerkleRootAccountHash)

@@ -41,7 +41,7 @@ func (a *BlockChainNewCommand) Execute(previousCmds []string, args []IArgument) 
 				})
 			}
 		} else {
-			cliLogger.Warn("Already a blockchain existed on disk, please remove it first.")
+			cliLogger.Warn("Blockchain aleady exists, please remove it first.")
 		}
 	}
 }
