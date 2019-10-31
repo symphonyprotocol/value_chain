@@ -73,5 +73,5 @@ commands:
 * optimized syncing and mining process
 * log utils now works more reliably on windows
 
-##Module Supported
+## Module Supported
 * In progress
