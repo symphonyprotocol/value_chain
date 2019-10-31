@@ -72,3 +72,6 @@ commands:
 * used pending pool to resolve the bifurcation
 * optimized syncing and mining process
 * log utils now works more reliably on windows
+
+##Module Supported
+* In progress
